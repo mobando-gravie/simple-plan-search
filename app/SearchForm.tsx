@@ -20,6 +20,10 @@ import {
 const MAX_CHILDREN = 10
 
 const GROUP_LABEL = 'text-header-h5 uppercase text-brown-gravie-50'
+const GROUP_CELL =
+  'space-y-3 rounded-sm border border-brown-gravie-20 bg-brown-gravie-5 p-4 shadow-elevation-1'
+const EMPTY_NOTE = 'text-paragraph-small text-brown-gravie-30'
+const GROUP_HEADER = 'flex min-h-8 items-center justify-between gap-2'
 // FIELD is w-full; appending w-24 loses to it, so swap the class out.
 const AGE_FIELD = FIELD.replace('w-full', 'w-24')
 
@@ -124,9 +128,12 @@ export default function SearchForm() {
           />
         </div>
 
-        <div className="space-y-3 border-t border-brown-gravie-20 pt-5">
-          <p className={GROUP_LABEL}>Member</p>
-          <div className="flex flex-wrap items-end gap-4">
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
+          <div className={GROUP_CELL}>
+            <div className={GROUP_HEADER}>
+              <p className={GROUP_LABEL}>Member</p>
+            </div>
+            <div className="flex flex-wrap items-end gap-4">
             <label className="block">
               <span className={LABEL}>Age</span>
               <input
@@ -138,29 +145,25 @@ export default function SearchForm() {
               />
             </label>
             <div className="pb-2.5">
-              <TobaccoCheckbox
-                name="memberTobacco"
-                defaultChecked={household?.member.tobacco ?? false}
-              />
+                <TobaccoCheckbox
+                  name="memberTobacco"
+                  defaultChecked={household?.member.tobacco ?? false}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="space-y-3 border-t border-brown-gravie-20 pt-5">
-          <div className="flex items-center justify-between">
-            <p className={GROUP_LABEL}>Spouse</p>
-            {!spouse && (
-              <button
-                type="button"
-                onClick={() => setSpouse({ age: '' })}
-                className={BTN_TEXT}
-              >
-                <Plus />
-                Add spouse
-              </button>
-            )}
-          </div>
-          {spouse ? (
+          <div className={GROUP_CELL}>
+            <div className={GROUP_HEADER}>
+              <p className={GROUP_LABEL}>Spouse</p>
+              {!spouse && (
+                <button type="button" onClick={() => setSpouse({ age: '' })} className={BTN_TEXT}>
+                  <Plus />
+                  Add spouse
+                </button>
+              )}
+            </div>
+            {spouse ? (
             <div className="flex flex-wrap items-end gap-4">
               <label className="block">
                 <span className={LABEL}>Age</span>
@@ -175,80 +178,79 @@ export default function SearchForm() {
               </label>
               <div className="pb-2.5">
                 <TobaccoCheckbox
-                  name="spouseTobacco"
-                  defaultChecked={household?.spouse?.tobacco ?? false}
-                />
+                    name="spouseTobacco"
+                    defaultChecked={household?.spouse?.tobacco ?? false}
+                  />
               </div>
-              <button
-                type="button"
-                onClick={() => setSpouse(null)}
-                className={`${BTN_TEXT} mb-1`}
-                aria-label="Remove spouse"
-              >
-                <X />
-                Remove
-              </button>
-            </div>
-          ) : (
-            <p className="text-paragraph-small text-brown-gravie-30">No spouse on this household.</p>
-          )}
-        </div>
-
-        <div className="space-y-3 border-t border-brown-gravie-20 pt-5">
-          <div className="flex items-center justify-between">
-            <p className={GROUP_LABEL}>Children</p>
-            {children.length < MAX_CHILDREN && (
-              <button
-                type="button"
-                onClick={() =>
-                  setChildren((rows) => [
-                    ...rows,
-                    { id: Math.max(0, ...rows.map((r) => r.id)) + 1, age: '' },
-                  ])
-                }
-                className={BTN_TEXT}
-              >
-                <Plus />
-                Add child
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setSpouse(null)}
+                  className={`${BTN_TEXT} mb-1`}
+                  aria-label="Remove spouse"
+                >
+                  <X />
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <p className={EMPTY_NOTE}>No spouse on this household.</p>
             )}
           </div>
-          {children.length === 0 ? (
-            <p className="text-paragraph-small text-brown-gravie-30">
-              No children on this household.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {children.map((child, i) => (
-                <li key={child.id} className="flex items-end gap-4">
-                  <label className="block">
-                    <span className={LABEL}>Child {i + 1} age</span>
-                    <input
-                      name="childAge"
-                      inputMode="numeric"
-                      required
-                      className={AGE_FIELD}
-                      value={child.age}
-                      onChange={(e) =>
-                        setChildren((rows) =>
-                          rows.map((r) => (r.id === child.id ? { ...r, age: e.target.value } : r)),
-                        )
-                      }
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setChildren((rows) => rows.filter((r) => r.id !== child.id))}
-                    className={`${BTN_TEXT} mb-1`}
-                    aria-label={`Remove child ${i + 1}`}
-                  >
-                    <X />
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+
+          <div className={GROUP_CELL}>
+            <div className={GROUP_HEADER}>
+              <p className={GROUP_LABEL}>Children</p>
+              {children.length < MAX_CHILDREN && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setChildren((rows) => [
+                      ...rows,
+                      { id: Math.max(0, ...rows.map((r) => r.id)) + 1, age: '' },
+                    ])
+                  }
+                  className={BTN_TEXT}
+                >
+                  <Plus />
+                  Add child
+                </button>
+              )}
+            </div>
+            {children.length === 0 ? (
+              <p className={EMPTY_NOTE}>No children on this household.</p>
+            ) : (
+              <ul className="space-y-3">
+                {children.map((child, i) => (
+                  <li key={child.id} className="flex items-end gap-3">
+                    <label className="block">
+                      <span className={LABEL}>Child {i + 1} age</span>
+                      <input
+                        name="childAge"
+                        inputMode="numeric"
+                        required
+                        className={AGE_FIELD}
+                        value={child.age}
+                        onChange={(e) =>
+                          setChildren((rows) =>
+                            rows.map((r) => (r.id === child.id ? { ...r, age: e.target.value } : r)),
+                          )
+                        }
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setChildren((rows) => rows.filter((r) => r.id !== child.id))}
+                      className={`${BTN_TEXT} mb-1`}
+                      aria-label={`Remove child ${i + 1}`}
+                    >
+                      <X />
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 border-t border-brown-gravie-20 pt-5">
