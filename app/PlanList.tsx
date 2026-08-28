@@ -60,17 +60,12 @@ export default function PlanList({
 
   return (
     <ul className="space-y-3">
-      {plans.map((plan, i) => {
+      {plans.map((plan) => {
         const providers = plan.coverage.providers
         const drugs = plan.coverage.drugs
         return (
           <li key={plan.hiosPlanId} className={`${CARD} p-5`}>
             <div className="flex items-start gap-3">
-              {/* Rank labels the current sort order, not the plan. */}
-              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary-green-60 text-paragraph-small font-bold text-white">
-                {i + 1}
-              </span>
-              <h3 className="min-w-0 flex-1 text-header-h4 text-ink-60">{plan.planName}</h3>
               {plan.logoUrl ? (
                 <Image
                   src={plan.logoUrl}
@@ -78,7 +73,7 @@ export default function PlanList({
                   width={96}
                   height={32}
                   unoptimized
-                  style={{ width: 'auto', height: '2rem' }}
+                  style={{ width: 'auto', height: '2rem', maxWidth: '100px' }}
                   className="shrink-0 object-contain"
                 />
               ) : (
@@ -86,6 +81,7 @@ export default function PlanList({
                   {plan.carrierName}
                 </span>
               )}
+              <h3 className="min-w-0 flex-1 text-header-h4 text-ink-60">{plan.planName}</h3>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
