@@ -1,3 +1,5 @@
+import { countCovered, countInNetwork } from './ideon/coverage'
+import type { SelectedDrug, SelectedProvider } from './ideon/types'
 import type { PricedPlan } from './services/planSearch'
 
 export type SortKey =
@@ -18,8 +20,8 @@ export type PlanFilterState = {
   hsaOnly: boolean
   maxPremiumCents: number | null
   maxDeductibleCents: number | null
-  coversAllDrugs: boolean
-  allProvidersInNetwork: boolean
+  drugCoverage: CoverageFilter
+  providerCoverage: CoverageFilter
   sort: SortKey
 }
 
@@ -31,8 +33,8 @@ export const DEFAULT_FILTERS: PlanFilterState = {
   hsaOnly: false,
   maxPremiumCents: null,
   maxDeductibleCents: null,
-  coversAllDrugs: false,
-  allProvidersInNetwork: false,
+  drugCoverage: null,
+  providerCoverage: null,
   sort: 'premium-asc',
 }
 
@@ -47,14 +49,18 @@ export function filterOptions(plans: PricedPlan[]) {
   }
 }
 
-export function coversAllDrugs(plan: PricedPlan): boolean {
-  const { drugs } = plan.coverage
-  return drugs.length > 0 && drugs.every((d) => d.covered)
-}
+/**
+ * null is the filter off. The other two borrow CoverageMatch's own names so the
+ * filter and the chip on the card say the same word about the same plan.
+ */
+export type CoverageFilter = null | 'partial' | 'match'
 
-export function allProvidersInNetwork(plan: PricedPlan): boolean {
-  const { providers } = plan.coverage
-  return providers.length > 0 && providers.every((p) => p.inNetwork)
+/** `partial` includes fully covered — it reads as "at least one", not "some but not all". */
+export function keepsCoverage(filter: CoverageFilter, covered: number, total: number): boolean {
+  if (filter === null) return true
+  // Nothing selected means there is nothing to be covered, so an active filter matches nothing.
+  if (total === 0) return false
+  return filter === 'match' ? covered === total : covered >= 1
 }
 
 /**
@@ -99,6 +105,7 @@ export function applyPlanFilters(
   plans: PricedPlan[],
   f: PlanFilterState,
   allowanceCents = 0,
+  selected: { providers?: SelectedProvider[]; drugs?: SelectedDrug[] } = {},
 ): PricedPlan[] {
   const needle = f.search.trim().toLowerCase()
   const kept = plans.filter((plan) => {
@@ -118,8 +125,18 @@ export function applyPlanFilters(
       const d = plan.deductibleIndividualCents
       if (d === null || d > f.maxDeductibleCents) return false
     }
-    if (f.coversAllDrugs && !coversAllDrugs(plan)) return false
-    if (f.allProvidersInNetwork && !allProvidersInNetwork(plan)) return false
+    // Counted off the member's own list, so this agrees with the card's chip rather
+    // than with whatever subset Ideon happened to return rows for.
+    const drugs = selected.drugs ?? []
+    const providers = selected.providers ?? []
+    if (!keepsCoverage(f.drugCoverage, countCovered(drugs, plan.coverage), drugs.length)) {
+      return false
+    }
+    if (
+      !keepsCoverage(f.providerCoverage, countInNetwork(providers, plan.coverage), providers.length)
+    ) {
+      return false
+    }
     return true
   })
   return kept.sort((a, b) => compareBy(f.sort, a, b, allowanceCents))

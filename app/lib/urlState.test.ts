@@ -208,8 +208,8 @@ test('the whole filter set round-trips', () => {
     hsaOnly: true,
     maxPremiumCents: 80_000,
     maxDeductibleCents: 500_000,
-    coversAllDrugs: true,
-    allProvidersInNetwork: true,
+    drugCoverage: 'match',
+    providerCoverage: 'partial',
     sort: 'oopMax-desc',
   }
   assert.deepEqual(decodeUrlState(encodeView(new URLSearchParams(), filters, null)).filters, filters)
@@ -273,4 +273,22 @@ test('an unresolved drug round-trips as r<rxcui> so a shared link keeps the deno
   assert.equal(back?.drugs.length, 2, 'the unresolved drug must survive the round trip')
   assert.equal(back?.drugs[1].ndc, null)
   assert.equal(back?.drugs[1].rxcui, 999999)
+})
+
+test('cd=1 predates the partial state and still decodes as "covers all"', () => {
+  // Links shared before the tri-state control existed must keep their meaning.
+  const legacy = decodeUrlState(new URLSearchParams('z=11201&a=35&cd=1&pn=1'))
+  assert.equal(legacy.filters.drugCoverage, 'match')
+  assert.equal(legacy.filters.providerCoverage, 'match')
+})
+
+test('the partial state round-trips as p, and off drops out of the URL', () => {
+  const encoded = encodeView(
+    new URLSearchParams(),
+    { ...DEFAULT_FILTERS, drugCoverage: 'partial', providerCoverage: null },
+    null,
+  )
+  assert.equal(encoded.get('cd'), 'p')
+  assert.equal(encoded.get('pn'), null, 'the filter being off must not appear at all')
+  assert.equal(decodeUrlState(encoded).filters.drugCoverage, 'partial')
 })

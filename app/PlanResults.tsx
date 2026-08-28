@@ -32,8 +32,8 @@ export default function PlanResults({
   const [openPlanId, setOpenPlanId] = useState(initialOpenPlanId)
 
   const visible = useMemo(
-    () => applyPlanFilters(plans, filters, allowanceCents),
-    [plans, filters, allowanceCents],
+    () => applyPlanFilters(plans, filters, allowanceCents, { providers, drugs }),
+    [plans, filters, allowanceCents, providers, drugs],
   )
 
   // What the member asked about, not what Ideon answered — a plan that returns no

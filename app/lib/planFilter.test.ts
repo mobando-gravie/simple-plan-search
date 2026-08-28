@@ -1,11 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  allProvidersInNetwork,
   applyPlanFilters,
-  coversAllDrugs,
   DEFAULT_FILTERS,
   filterOptions,
+  keepsCoverage,
 } from './planFilter'
 import type { PricedPlan } from './services/planSearch'
 
@@ -107,9 +106,26 @@ test('unpriced plans sort last rather than first', () => {
   )
 })
 
-test('coverage helpers require at least one selection', () => {
-  assert.equal(coversAllDrugs(plan()), false)
-  assert.equal(allProvidersInNetwork(plan()), false)
+test('the coverage filter off keeps everything, including a plan covering nothing', () => {
+  assert.equal(keepsCoverage(null, 0, 0), true)
+  assert.equal(keepsCoverage(null, 0, 3), true)
+})
+
+test('an active coverage filter matches nothing when nothing was selected', () => {
+  // No drugs chosen means no drug can be covered, so "covers my drugs" cannot hold.
+  assert.equal(keepsCoverage('partial', 0, 0), false)
+  assert.equal(keepsCoverage('match', 0, 0), false)
+})
+
+test('partial means at least one, and so includes fully covered', () => {
+  assert.equal(keepsCoverage('partial', 0, 3), false)
+  assert.equal(keepsCoverage('partial', 1, 3), true)
+  assert.equal(keepsCoverage('partial', 3, 3), true)
+})
+
+test('match means every one of them', () => {
+  assert.equal(keepsCoverage('match', 2, 3), false)
+  assert.equal(keepsCoverage('match', 3, 3), true)
 })
 
 test('the drug filter keeps only plans covering every selected drug', () => {
@@ -123,8 +139,30 @@ test('the drug filter keeps only plans covering every selected drug', () => {
       },
     }),
   ]
-  const out = applyPlanFilters(plans, { ...DEFAULT_FILTERS, coversAllDrugs: true })
-  assert.deepEqual(out.map((p) => p.hiosPlanId), ['all'])
+  const drugs = [
+    { medId: 1, ndc: 'X', name: 'x' },
+    { medId: 2, ndc: 'Y', name: 'y' },
+  ]
+  const all = applyPlanFilters(plans, { ...DEFAULT_FILTERS, drugCoverage: 'match' }, 0, { drugs })
+  assert.deepEqual(all.map((p) => p.hiosPlanId), [])
+
+  // 'all' covers X but was never asked about Y, so it is not a full match either.
+  const some = applyPlanFilters(plans, { ...DEFAULT_FILTERS, drugCoverage: 'partial' }, 0, { drugs })
+  assert.deepEqual(some.map((p) => p.hiosPlanId), ['all', 'partial'])
+})
+
+test('a drug whose identifier never resolved counts against a full match', () => {
+  const plans = [
+    plan({ hiosPlanId: 'covers-x', coverage: { providers: [], drugs: [{ ...covered, ndc: 'X' }] } }),
+  ]
+  // Before the counts moved onto the requested list this returned the plan: the
+  // unresolved drug had no coverage row, so `every(covered)` was vacuously true.
+  const drugs = [
+    { medId: 1, ndc: 'X', name: 'x' },
+    { medId: 0, ndc: null, name: 'RxCUI 999', rxcui: 999 },
+  ]
+  const out = applyPlanFilters(plans, { ...DEFAULT_FILTERS, drugCoverage: 'match' }, 0, { drugs })
+  assert.deepEqual(out.map((p) => p.hiosPlanId), [])
 })
 
 test('the provider filter keeps only plans with every provider in network', () => {
@@ -138,8 +176,25 @@ test('the provider filter keeps only plans with every provider in network', () =
       },
     }),
   ]
-  const out = applyPlanFilters(plans, { ...DEFAULT_FILTERS, allProvidersInNetwork: true })
-  assert.deepEqual(out.map((p) => p.hiosPlanId), ['in'])
+  const providers = [
+    { npi: 1, name: 'one' },
+    { npi: 2, name: 'two' },
+  ]
+  const all = applyPlanFilters(
+    plans,
+    { ...DEFAULT_FILTERS, providerCoverage: 'match' },
+    0,
+    { providers },
+  )
+  assert.deepEqual(all.map((p) => p.hiosPlanId), [])
+
+  const some = applyPlanFilters(
+    plans,
+    { ...DEFAULT_FILTERS, providerCoverage: 'partial' },
+    0,
+    { providers },
+  )
+  assert.deepEqual(some.map((p) => p.hiosPlanId), ['in', 'mixed'])
 })
 
 test('sorting by each key orders as expected', () => {

@@ -1,6 +1,7 @@
-import { X } from 'lucide-react'
+import { Check, Minus, X } from 'lucide-react'
 import type { CoverageMatch } from '@/app/lib/ideon/coverage'
 import { isMetalLevel } from '@/app/lib/metal'
+import type { CoverageFilter } from '@/app/lib/planFilter'
 import { BG, BORDER, HOVER, TEXT } from './colors'
 import { cx } from './cx'
 import { CHIP } from './theme'
@@ -65,6 +66,47 @@ export function ToggleChip({
       aria-pressed={on}
       className={cx(CHIP, 'transition-colors', on ? CHIP_TONES.orange : TOGGLE_OFF, className)}
     >
+      {children}
+    </button>
+  )
+}
+
+const CYCLE = [null, 'partial', 'match'] as const
+const ARIA_CHECKED = { partial: 'mixed', match: true } as const
+
+/**
+ * Off → at least one → all, and back. A native checkbox cannot express the middle
+ * state declaratively (indeterminate is a DOM property, not an attribute), so this
+ * is a button carrying the standard aria-checked="mixed" contract instead.
+ */
+export function TriStateChip({
+  value,
+  onChange,
+  children,
+}: {
+  value: CoverageFilter
+  onChange: (next: CoverageFilter) => void
+  children: React.ReactNode
+}) {
+  const on = value !== null
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={value === null ? false : ARIA_CHECKED[value]}
+      onClick={() => onChange(CYCLE[(CYCLE.indexOf(value) + 1) % CYCLE.length])}
+      className={cx(CHIP, 'transition-colors', on ? CHIP_TONES.orange : TOGGLE_OFF)}
+    >
+      <span
+        className={cx(
+          'inline-flex h-3.5 w-3.5 items-center justify-center rounded-xs border',
+          on ? BORDER.accent : BORDER.subtle,
+          '[&_svg]:size-3',
+        )}
+      >
+        {value === 'match' && <Check />}
+        {value === 'partial' && <Minus />}
+      </span>
       {children}
     </button>
   )

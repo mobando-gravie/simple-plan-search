@@ -6,7 +6,7 @@ import { DEFAULT_FILTERS, filterOptions, type PlanFilterState, type SortKey } fr
 import { isDefaultFilters } from '@/app/lib/urlState'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
 import { Button } from '@/app/ui/Button'
-import { ToggleChip } from '@/app/ui/Chip'
+import { ToggleChip, TriStateChip } from '@/app/ui/Chip'
 import { TEXT } from '@/app/ui/colors'
 import { CheckboxRow, Field, Select } from '@/app/ui/Field'
 import { CARD, DIVIDED_TOP, LABEL, MUTED } from '@/app/ui/theme'
@@ -153,18 +153,20 @@ export default function PlanFilters({
           onChange={(e) => set('hsaOnly', e.target.checked)}
         />
         {hasDrugs && (
-          <CheckboxRow
-            label="Covers all my drugs"
-            checked={filters.coversAllDrugs}
-            onChange={(e) => set('coversAllDrugs', e.target.checked)}
-          />
+          <TriStateChip
+            value={filters.drugCoverage}
+            onChange={(next) => set('drugCoverage', next)}
+          >
+            Covers my drugs
+          </TriStateChip>
         )}
         {hasProviders && (
-          <CheckboxRow
-            label="All my providers in network"
-            checked={filters.allProvidersInNetwork}
-            onChange={(e) => set('allProvidersInNetwork', e.target.checked)}
-          />
+          <TriStateChip
+            value={filters.providerCoverage}
+            onChange={(next) => set('providerCoverage', next)}
+          >
+            My providers in network
+          </TriStateChip>
         )}
         <span className={`ml-auto ${MUTED}`}>
           showing <strong className={`font-bold ${TEXT.heading}`}>{shown}</strong> of {plans.length}

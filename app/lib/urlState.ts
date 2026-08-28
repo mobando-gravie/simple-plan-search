@@ -3,7 +3,12 @@ import type { Household } from './household'
 import type { SelectedDrug, SelectedProvider } from './ideon/types'
 import { METAL_CODES } from './metal'
 import { centsToDollars, dollarsToCents } from './money'
-import { DEFAULT_FILTERS, type PlanFilterState, type SortKey } from './planFilter'
+import {
+  DEFAULT_FILTERS,
+  type CoverageFilter,
+  type PlanFilterState,
+  type SortKey,
+} from './planFilter'
 import { DEFAULT_CRITERIA, type SearchCriteria } from './services/planSearch'
 
 /**
@@ -69,6 +74,17 @@ function params(input: SearchParamsInput): URLSearchParams {
 function list(raw: string | null): string[] {
   if (!raw) return []
   return raw.split(LIST).filter((part) => part !== '')
+}
+
+/** `1` predates the partial state and meant "covers all", so it still decodes to match. */
+function coverageFilter(raw: string | null): CoverageFilter {
+  if (raw === '1') return 'match'
+  return raw === 'p' ? 'partial' : null
+}
+
+function coverageCode(filter: CoverageFilter): string {
+  if (filter === 'match') return '1'
+  return filter === 'partial' ? 'p' : ''
 }
 
 /** null for anything that is not a whole age in range, so a junk URL degrades quietly. */
@@ -170,8 +186,8 @@ function decodeFilters(p: URLSearchParams): PlanFilterState {
     hsaOnly: p.get('hsa') === '1',
     maxPremiumCents: dollarsToCentsOrNull(p.get('mp')),
     maxDeductibleCents: dollarsToCentsOrNull(p.get('md')),
-    coversAllDrugs: p.get('cd') === '1',
-    allProvidersInNetwork: p.get('pn') === '1',
+    drugCoverage: coverageFilter(p.get('cd')),
+    providerCoverage: coverageFilter(p.get('pn')),
     sort: sort as SortKey,
   }
 }
@@ -246,8 +262,8 @@ export function encodeView(
   put(p, 'mp', centsParam(filters.maxPremiumCents))
   put(p, 'md', centsParam(filters.maxDeductibleCents))
   put(p, 'hsa', filters.hsaOnly ? '1' : '')
-  put(p, 'cd', filters.coversAllDrugs ? '1' : '')
-  put(p, 'pn', filters.allProvidersInNetwork ? '1' : '')
+  put(p, 'cd', coverageCode(filters.drugCoverage))
+  put(p, 'pn', coverageCode(filters.providerCoverage))
   put(p, 'o', filters.sort === DEFAULT_FILTERS.sort ? '' : toCode(SORT_CODES, filters.sort))
   put(p, 'v', openPlanId ?? '')
 
