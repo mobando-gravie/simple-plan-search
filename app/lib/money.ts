@@ -52,3 +52,19 @@ export function parseCurrencyToCents(raw: string | null | undefined): number | n
   const cents = Math.round(value * 100)
   return negative ? -cents : cents
 }
+
+/**
+ * A form field's raw text to cents. Empty or non-numeric is null, not 0 — a cleared
+ * "max premium" means no ceiling, which is a different thing from a $0 ceiling.
+ */
+export function parseDollarStringToCents(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (trimmed === '') return null
+  const dollars = Number(trimmed)
+  return Number.isFinite(dollars) ? Math.round(dollars * 100) : null
+}
+
+/** The inverse, for a controlled input: null renders as an empty field. */
+export function centsToDollarString(cents: number | null | undefined): string {
+  return cents === null || cents === undefined ? '' : String(centsToDollars(cents))
+}

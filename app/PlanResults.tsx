@@ -1,5 +1,4 @@
 'use client'
-import * as Tooltip from '@radix-ui/react-tooltip'
 import { useMemo, useState } from 'react'
 import { applyPlanFilters, type PlanFilterState } from '@/app/lib/planFilter'
 import type { SelectedDrug } from '@/app/lib/ideon/types'
@@ -7,6 +6,7 @@ import type { PricedPlan } from '@/app/lib/services/planSearch'
 import { encodeView } from '@/app/lib/urlState'
 import PlanFilters from '@/app/PlanFilters'
 import PlanList from '@/app/PlanList'
+import { TooltipProvider } from '@/app/ui/InfoTooltip'
 
 /**
  * The URL seeds this component and receives every change back, but the live copy
@@ -57,7 +57,7 @@ export default function PlanResults({
   // provider-level, so this is what makes timing consistent and lets a reader move
   // between neighbouring tooltips without waiting again.
   return (
-    <Tooltip.Provider delayDuration={200} skipDelayDuration={300}>
+    <TooltipProvider delayDuration={200} skipDelayDuration={300}>
       <div className="space-y-4">
         <PlanFilters
           plans={plans}
@@ -77,6 +77,6 @@ export default function PlanResults({
           drugs={drugs}
         />
       </div>
-    </Tooltip.Provider>
+    </TooltipProvider>
   )
 }

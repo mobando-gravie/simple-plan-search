@@ -1,6 +1,7 @@
 import { firstOfNextMonth } from './dates'
 import type { Household } from './household'
 import type { SelectedDrug, SelectedProvider } from './ideon/types'
+import { METAL_CODES } from './metal'
 import { centsToDollars, dollarsToCents } from './money'
 import { DEFAULT_FILTERS, type PlanFilterState, type SortKey } from './planFilter'
 import { DEFAULT_CRITERIA, type SearchCriteria } from './services/planSearch'
@@ -25,15 +26,6 @@ const MAX_AGE = 120
 // would cost three characters. `.` separates list items, `_` fields within one.
 const LIST = '.'
 const FIELD = '_'
-
-const METAL_CODES: Record<string, string> = {
-  bronze: 'b',
-  expanded_bronze: 'eb',
-  silver: 's',
-  gold: 'g',
-  platinum: 'p',
-  catastrophic: 'c',
-}
 
 const SORT_CODES: Record<SortKey, string> = {
   'premium-asc': 'pa',

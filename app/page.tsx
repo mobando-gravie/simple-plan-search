@@ -1,4 +1,5 @@
 import SearchForm from './SearchForm'
+import { errorMessage } from './lib/errors'
 import { labelSelections } from './lib/services/entityLookup'
 import { searchPlans, type SearchResult } from './lib/services/planSearch'
 import { decodeUrlState, type SearchParamsInput } from './lib/urlState'
@@ -20,7 +21,7 @@ export default async function Page({
     try {
       result = await searchPlans(criteria)
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Search failed.'
+      error = errorMessage(e, 'Search failed.')
     }
   }
 

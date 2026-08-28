@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { firstOfNextMonth } from './dates'
+import { firstOfNextMonth, formatTimestamp, minutesAgo } from './dates'
 
 test('returns the first of the following month', () => {
   assert.equal(firstOfNextMonth(new Date(2026, 7, 27)), '2026-09-01')
@@ -24,4 +24,15 @@ test('the last instant of a month still resolves to the next one, not the one af
 
 test('a 31-day month rolling into a 30-day month does not overflow', () => {
   assert.equal(firstOfNextMonth(new Date(2026, 2, 31)), '2026-04-01')
+})
+
+test('formatTimestamp renders a sortable minute-precision stamp', () => {
+  assert.equal(formatTimestamp(new Date('2026-08-28T14:05:39.123Z')), '2026-08-28 14:05')
+})
+
+test('minutesAgo rounds seconds to the nearest minute', () => {
+  assert.equal(minutesAgo(0), 0)
+  assert.equal(minutesAgo(29), 0)
+  assert.equal(minutesAgo(31), 1)
+  assert.equal(minutesAgo(3600), 60)
 })

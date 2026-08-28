@@ -1,5 +1,6 @@
 import { listBatches } from '@/app/lib/services/modifierService'
-import { CODE, H1, PAGE_SUBTITLE, PANEL } from '@/app/ui/theme'
+import { Muted } from '@/app/ui/Text'
+import { CODE, CODE_BLOCK, H1, PAGE_SUBTITLE, PANEL } from '@/app/ui/theme'
 import BatchList from './BatchList'
 import UploadForm from './UploadForm'
 
@@ -32,15 +33,15 @@ export default async function ModifiersPage() {
         <summary className="cursor-pointer text-paragraph-regular font-bold text-ink-50">
           CSV format
         </summary>
-        <p className="mt-3 text-brown-gravie-50">
+        <Muted className="mt-3">
           Column names are matched case-insensitively and ignore spaces, dashes and underscores, so
           a Gravie MySQL export usually drops in unchanged. Common aliases are accepted:{' '}
           <code className={CODE}>planId</code>, <code className={CODE}>metal</code>,{' '}
           <code className={CODE}>year</code>, <code className={CODE}>factor</code>. A flat amount
           written with a <code className={CODE}>$</code> or a decimal point is read as dollars; a
           bare integer as cents.
-        </p>
-        <pre className="mt-3 overflow-x-auto rounded-xs bg-ink-10 p-4 font-mono text-xs text-ink-60">
+        </Muted>
+        <pre className={`mt-3 ${CODE_BLOCK}`}>
           {SAMPLE}
         </pre>
       </details>

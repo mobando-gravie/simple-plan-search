@@ -2,12 +2,21 @@
 import { Upload } from 'lucide-react'
 import { useActionState } from 'react'
 import { uploadModifiers, type UploadState } from '@/app/actions/modifiers'
-import { BANNER_SUCCESS, BANNER_WARN, BTN_SOLID, FIELD, LABEL, PANEL } from '@/app/ui/theme'
+import { plural } from '@/app/lib/text'
+import { Button } from '@/app/ui/Button'
+import { TEXT } from '@/app/ui/colors'
+import { Field } from '@/app/ui/Field'
+import { Muted } from '@/app/ui/Text'
+import {
+  BANNER_SUCCESS,
+  BANNER_WARN,
+  FILE_BUTTON,
+  LABEL,
+  MUTED,
+  PANEL,
+} from '@/app/ui/theme'
 
-const FILE_INPUT =
-  'text-paragraph-small text-brown-gravie-50 file:mr-3 file:rounded-xs file:border ' +
-  'file:border-marketplace-orange-50 file:bg-white file:px-3 file:py-[6px] file:text-sm ' +
-  'file:font-bold file:text-marketplace-orange-60 hover:file:bg-marketplace-orange-10'
+const FILE_INPUT = `${MUTED} ${FILE_BUTTON}`
 
 export default function UploadForm() {
   const [state, action, pending] = useActionState<UploadState, FormData>(uploadModifiers, undefined)
@@ -19,32 +28,28 @@ export default function UploadForm() {
           <span className={LABEL}>CSV file</span>
           <input type="file" name="file" accept=".csv,text/csv" required className={FILE_INPUT} />
         </label>
-        <label className="block grow">
-          <span className={LABEL}>Note</span>
-          <input
-            name="note"
-            placeholder="e.g. 2026 rates pulled from qa-main plancatalog"
-            className={FIELD}
-          />
-        </label>
-        <button type="submit" disabled={pending} className={`${BTN_SOLID} px-6`}>
+        <Field
+          label="Note"
+          name="note"
+          placeholder="e.g. 2026 rates pulled from qa-main plancatalog"
+          className="grow"
+        />
+        <Button type="submit" pending={pending} pendingLabel="Importing…" className="px-6">
           <Upload />
-          {pending ? 'Importing…' : 'Import'}
-        </button>
+          Import
+        </Button>
       </form>
 
       {state?.message && <p className={BANNER_SUCCESS}>{state.message}</p>}
 
       {state && state.unmappedColumns.length > 0 && (
-        <p className="text-paragraph-extra-small text-brown-gravie-50">
-          Ignored unrecognized columns: {state.unmappedColumns.join(', ')}
-        </p>
+        <Muted size="xs">Ignored unrecognized columns: {state.unmappedColumns.join(', ')}</Muted>
       )}
 
       {state && state.errors.length > 0 && (
         <div className={BANNER_WARN}>
-          <p className="text-paragraph-small font-bold text-ink-60">
-            {state.errors.length} row {state.errors.length === 1 ? 'problem' : 'problems'}
+          <p className={`text-paragraph-small font-bold ${TEXT.heading}`}>
+            {state.errors.length} row {plural(state.errors.length, 'problem', 'problems')}
           </p>
           <ul className="mt-1 space-y-0.5 text-paragraph-extra-small">
             {state.errors.slice(0, 20).map((e, i) => (

@@ -1,11 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  centsToDollarString,
   dollarsToCents,
   formatCents,
   formatCentsDelta,
   netPremiumCents,
   parseCurrencyToCents,
+  parseDollarStringToCents,
 } from './money'
 
 test('dollarsToCents rounds to the nearest cent', () => {
@@ -72,4 +74,23 @@ test('an allowance larger than the premium floors at zero, not a refund', () => 
 test('an unpriced premium stays unpriced whatever the allowance', () => {
   assert.equal(netPremiumCents(null, 40000), null)
   assert.equal(netPremiumCents(null), null)
+})
+
+test('parseDollarStringToCents reads a form field, empty and junk as null', () => {
+  assert.equal(parseDollarStringToCents('800'), 80000)
+  assert.equal(parseDollarStringToCents('12.50'), 1250)
+  assert.equal(parseDollarStringToCents(' 400 '), 40000)
+  assert.equal(parseDollarStringToCents('-5'), -500)
+  // null is "no ceiling", which is not the same thing as a $0 ceiling.
+  assert.equal(parseDollarStringToCents(''), null)
+  assert.equal(parseDollarStringToCents('   '), null)
+  assert.equal(parseDollarStringToCents('abc'), null)
+})
+
+test('centsToDollarString round-trips a controlled input, null as empty', () => {
+  assert.equal(centsToDollarString(80000), '800')
+  assert.equal(centsToDollarString(1250), '12.5')
+  assert.equal(centsToDollarString(0), '0')
+  assert.equal(centsToDollarString(null), '')
+  assert.equal(centsToDollarString(undefined), '')
 })

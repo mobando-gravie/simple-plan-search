@@ -29,19 +29,22 @@ export async function uploadModifiers(
   }
 }
 
-export async function activateBatch(formData: FormData) {
+/** A hidden form field, so a junk id is a broken client rather than a user error. */
+function batchId(formData: FormData): number | null {
   const id = Number(formData.get('batchId'))
-  const active = formData.get('active') === 'true'
-  if (Number.isInteger(id)) {
-    await setBatchActive(id, active)
-    revalidatePath('/modifiers')
-  }
+  return Number.isInteger(id) ? id : null
+}
+
+export async function activateBatch(formData: FormData) {
+  const id = batchId(formData)
+  if (id === null) return
+  await setBatchActive(id, formData.get('active') === 'true')
+  revalidatePath('/modifiers')
 }
 
 export async function removeBatch(formData: FormData) {
-  const id = Number(formData.get('batchId'))
-  if (Number.isInteger(id)) {
-    await deleteBatch(id)
-    revalidatePath('/modifiers')
-  }
+  const id = batchId(formData)
+  if (id === null) return
+  await deleteBatch(id)
+  revalidatePath('/modifiers')
 }

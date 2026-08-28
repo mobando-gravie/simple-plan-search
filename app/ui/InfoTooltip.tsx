@@ -2,13 +2,13 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { Info } from 'lucide-react'
 import { useState } from 'react'
+import { BG, HOVER, TEXT } from './colors'
 
 /**
  * Styled to what member-client actually renders (components/tooltip.cljs): dark
  * ink-60 bubble, ink-15 text, 4px radius, 192px wide.
  */
-const CONTENT =
-  'z-50 max-w-48 rounded-sm bg-ink-60 px-2 py-1 text-paragraph-small text-ink-15 shadow-elevation-1'
+const CONTENT = `z-50 max-w-48 rounded-sm ${BG.inverse} px-2 py-1 text-paragraph-small ${TEXT.onInverse} shadow-elevation-1`
 
 function Bubble({ copy }: { copy: string }) {
   return (
@@ -64,11 +64,18 @@ function Lazy({ copy, children }: { copy: string; children: React.ReactNode }) {
   )
 }
 
+/**
+ * Radix needs a Provider above every Root. Re-exported here so the dependency is
+ * visible from the same module as the tooltips themselves — it used to live only in
+ * PlanResults, where an InfoTooltip rendered anywhere else would fail silently.
+ */
+export const TooltipProvider = Tooltip.Provider
+
 /** The Info icon as its own trigger, for the stat labels. */
 export default function InfoTooltip({ copy }: { copy: string }) {
   return (
     <Lazy copy={copy}>
-      <span className="inline-flex items-center text-brown-gravie-30 transition-colors hover:text-brown-gravie-50">
+      <span className={`inline-flex items-center ${TEXT.faint} transition-colors ${HOVER.muted}`}>
         <Info className="h-3.5 w-3.5" />
       </span>
     </Lazy>
@@ -80,7 +87,5 @@ export default function InfoTooltip({ copy }: { copy: string }) {
  * column would be noise, and the chip is already an obvious hover target.
  */
 export function Tip({ copy, children }: { copy: string; children: React.ReactNode }) {
-  return (
-    <Lazy copy={copy}>{children}</Lazy>
-  )
+  return <Lazy copy={copy}>{children}</Lazy>
 }

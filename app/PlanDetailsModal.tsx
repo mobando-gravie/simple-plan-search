@@ -1,5 +1,5 @@
 'use client'
-import { Check, FileText, X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import {
   ADDITIONAL_COVERAGES,
@@ -11,12 +11,21 @@ import {
 } from '@/app/lib/planBenefits'
 import type { SelectedDrug } from '@/app/lib/ideon/types'
 import { formatCents } from '@/app/lib/money'
+import { sbcUrl } from '@/app/lib/planBenefits'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
-import { BTN_OUTLINE } from '@/app/ui/theme'
-
-const SECTION = 'text-header-h3 text-ink-60'
-const LINK =
-  'inline-flex items-center gap-2 text-paragraph-regular text-marketplace-orange-60 underline hover:text-marketplace-orange-70'
+import { Button, IconButton } from '@/app/ui/Button'
+import { BG, TEXT } from '@/app/ui/colors'
+import { DocLink } from '@/app/ui/DocLink'
+import { Muted } from '@/app/ui/Text'
+import {
+  CARD_HEADER,
+  DIVIDED_LIST,
+  FAINT,
+  DIVIDED_TOP,
+  MUTED,
+  MUTED_XS,
+  SECTION_TITLE,
+} from '@/app/ui/theme'
 
 function BenefitTable({
   benefits,
@@ -27,10 +36,10 @@ function BenefitTable({
 }) {
   const values = benefitValues(benefits, rows)
   if (values.length === 0) {
-    return <p className="text-paragraph-small text-brown-gravie-30">Not published for this plan.</p>
+    return <p className={FAINT}>Not published for this plan.</p>
   }
   return (
-    <ul className="divide-y divide-brown-gravie-20">
+    <ul className={DIVIDED_LIST}>
       {values.map((v, i) => (
         <li
           key={v.label}
@@ -38,14 +47,14 @@ function BenefitTable({
             i % 2 === 1 ? 'bg-brown-gravie-5' : ''
           }`}
         >
-          <span className="text-paragraph-regular text-ink-50">{v.label}</span>
-          <span className="text-paragraph-small text-ink-60">
+          <span className={`text-paragraph-regular ${TEXT.body}`}>{v.label}</span>
+          <span className={`text-paragraph-small ${TEXT.heading}`}>
             <span className="block">
-              <span className="text-brown-gravie-50">In Network · </span>
+              <span className={TEXT.muted}>In Network · </span>
               {v.inNetwork}
             </span>
             <span className="block">
-              <span className="text-brown-gravie-50">Out of Network · </span>
+              <span className={TEXT.muted}>Out of Network · </span>
               {v.outOfNetwork}
             </span>
           </span>
@@ -78,10 +87,7 @@ export default function PlanDetailsModal({
     if (dialog && !dialog.open) dialog.showModal()
   }, [])
 
-  const sbc =
-    plan.documents.find((d) => d.type === 'summary_of_benefits_and_coverage')?.url ??
-    plan.documents[0]?.url ??
-    null
+  const sbc = sbcUrl(plan.documents)
 
   return (
     <dialog
@@ -90,79 +96,59 @@ export default function PlanDetailsModal({
       onClick={(e) => {
         if (e.target === ref.current) onClose()
       }}
-      className="m-auto w-full max-w-3xl rounded-sm bg-white p-0 backdrop:bg-ink-60/40"
+      className={`m-auto w-full max-w-3xl rounded-sm ${BG.surface} p-0 backdrop:bg-ink-60/40`}
     >
-      <div className="sticky top-0 flex items-start gap-3 border-b border-brown-gravie-20 bg-brown-gravie-10 px-6 py-4">
+      <div className={`sticky top-0 items-start px-6 py-4 ${CARD_HEADER}`}>
         <div className="min-w-0 flex-1">
-          <h2 className="text-header-h3 text-ink-60">{plan.planName}</h2>
-          <p className="text-paragraph-small text-brown-gravie-50">
+          <h2 className={SECTION_TITLE}>{plan.planName}</h2>
+          <Muted>
             {plan.carrierName} · <span className="font-mono">{plan.hiosPlanId}</span>
-          </p>
+          </Muted>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="rounded-xs p-1 text-brown-gravie-50 transition-colors hover:text-destructive"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <IconButton label="Close" size="lg" onClick={onClose}>
+          <X />
+        </IconButton>
       </div>
 
       <div className="space-y-8 px-6 py-6">
         {(sbc || plan.formularyUrl) && (
           <section className="space-y-3">
-            <h3 className={SECTION}>Documents</h3>
+            <h3 className={SECTION_TITLE}>Documents</h3>
             <div className="flex flex-wrap gap-6">
-              {sbc && (
-                <a href={sbc} target="_blank" rel="noopener noreferrer" className={LINK}>
-                  <FileText className="h-4 w-4" />
-                  Summary of Benefits and Coverage
-                </a>
-              )}
+              {sbc && <DocLink href={sbc}>Summary of Benefits and Coverage</DocLink>}
               {plan.formularyUrl && (
-                <a
-                  href={plan.formularyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={LINK}
-                >
-                  <FileText className="h-4 w-4" />
-                  Prescription List
-                </a>
+                <DocLink href={plan.formularyUrl}>Prescription List</DocLink>
               )}
             </div>
           </section>
         )}
 
         <section className="space-y-3">
-          <h3 className={SECTION}>Care Services</h3>
+          <h3 className={SECTION_TITLE}>Care Services</h3>
           <BenefitTable benefits={plan.benefits} rows={CARE_SERVICES} />
         </section>
 
         {drugs.length > 0 && (
           <section className="space-y-3">
-            <h3 className={SECTION}>Your Prescriptions</h3>
-            <ul className="divide-y divide-brown-gravie-20">
+            <h3 className={SECTION_TITLE}>Your Prescriptions</h3>
+            <ul className={DIVIDED_LIST}>
               {drugs.map((drug) => {
                 const cover = plan.coverage.drugs.find((d) => d.ndc === drug.ndc)
                 return (
                   <li key={drug.medId} className="flex items-start justify-between gap-4 py-3">
-                    <span className="text-paragraph-regular text-ink-50">{drug.name}</span>
+                    <span className={`text-paragraph-regular ${TEXT.body}`}>{drug.name}</span>
                     <span className="shrink-0 text-right">
                       {cover?.covered ? (
-                        <span className="inline-flex items-center gap-1 text-paragraph-small font-bold text-secondary-green-70">
-                          <Check className="h-4 w-4" />
+                        <span
+                          className={`inline-flex items-center gap-1 text-paragraph-small font-bold ${TEXT.positive} [&_svg]:size-4`}
+                        >
+                          <Check />
                           Covered
                         </span>
                       ) : (
-                        <span className="text-paragraph-small text-brown-gravie-50">
-                          Not covered
-                        </span>
+                        <span className={MUTED}>Not covered</span>
                       )}
-                      <span className="block text-paragraph-extra-small text-brown-gravie-50">
-                        {formatTier(cover?.tier ?? null)}
-                      </span>
+                      <span className={`block ${MUTED_XS}`}>{formatTier(cover?.tier ?? null)}</span>
                     </span>
                   </li>
                 )
@@ -172,31 +158,31 @@ export default function PlanDetailsModal({
         )}
 
         <section className="space-y-3">
-          <h3 className={SECTION}>Prescription Coverage</h3>
+          <h3 className={SECTION_TITLE}>Prescription Coverage</h3>
           <BenefitTable benefits={plan.benefits} rows={PRESCRIPTION_COVERAGE} />
         </section>
 
         <section className="space-y-3">
-          <h3 className={SECTION}>Additional Coverages</h3>
+          <h3 className={SECTION_TITLE}>Additional Coverages</h3>
           <BenefitTable benefits={plan.benefits} rows={ADDITIONAL_COVERAGES} />
         </section>
 
-        <section className="space-y-1 border-t border-brown-gravie-20 pt-4">
-          <h3 className={SECTION}>Cost sharing</h3>
-          <p className="tnum text-paragraph-small text-brown-gravie-50">
+        <section className={`space-y-1 pt-4 ${DIVIDED_TOP}`}>
+          <h3 className={SECTION_TITLE}>Cost sharing</h3>
+          <Muted className="tnum">
             Deductible {formatCents(plan.deductibleIndividualCents)} / person ·{' '}
             {formatCents(plan.deductibleFamilyCents)} / household
-          </p>
-          <p className="tnum text-paragraph-small text-brown-gravie-50">
+          </Muted>
+          <Muted className="tnum">
             Max OOP {formatCents(plan.outOfPocketMaxIndividualCents)} / person ·{' '}
             {formatCents(plan.outOfPocketMaxFamilyCents)} / household
-          </p>
+          </Muted>
         </section>
 
         <div className="flex justify-end">
-          <button type="button" onClick={onClose} className={BTN_OUTLINE}>
+          <Button type="button" variant="outline" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
       </div>
     </dialog>

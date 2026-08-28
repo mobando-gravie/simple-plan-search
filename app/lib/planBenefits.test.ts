@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { benefitValues, CARE_SERVICES, formatTier } from './planBenefits'
+import { benefitValues, CARE_SERVICES, formatTier, sbcUrl } from './planBenefits'
 
 test('v8 object cost shares split into both columns', () => {
   const values = benefitValues(
@@ -57,4 +57,13 @@ test('tiers render as words', () => {
   assert.equal(formatTier('preferred_generic'), 'Preferred Generic')
   assert.equal(formatTier('specialty'), 'Specialty')
   assert.equal(formatTier(null), 'Not covered')
+})
+
+test('sbcUrl prefers the SBC, else the first document, else null', () => {
+  const sbc = { type: 'summary_of_benefits_and_coverage', url: 'https://x/sbc.pdf' }
+  const formulary = { type: 'formulary', url: 'https://x/drugs.pdf' }
+
+  assert.equal(sbcUrl([formulary, sbc]), sbc.url)
+  assert.equal(sbcUrl([formulary]), formulary.url)
+  assert.equal(sbcUrl([]), null)
 })

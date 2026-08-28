@@ -1,11 +1,10 @@
 'use client'
-import { FileText } from 'lucide-react'
 import Image from 'next/image'
-import { coverageMatch, type CoverageMatch } from '@/app/lib/ideon/coverage'
+import { coverageMatch } from '@/app/lib/ideon/coverage'
 import type { SelectedDrug } from '@/app/lib/ideon/types'
 import { formatCents, netPremiumCents } from '@/app/lib/money'
+import { sbcUrl } from '@/app/lib/planBenefits'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
-import InfoTooltip, { Tip } from '@/app/InfoTooltip'
 import PlanDetailsModal from '@/app/PlanDetailsModal'
 import {
   benefitTooltip,
@@ -13,30 +12,19 @@ import {
   planTypeTooltip,
   TOOLTIP_COPY,
 } from '@/app/lib/tooltipCopy'
-import { CARD, CHIP } from '@/app/ui/theme'
+import { Button } from '@/app/ui/Button'
+import { Chip, metalTone, TONE_BY_MATCH } from '@/app/ui/Chip'
+import { TEXT } from '@/app/ui/colors'
+import { DocLink } from '@/app/ui/DocLink'
+import InfoTooltip, { Tip } from '@/app/ui/InfoTooltip'
+import { EmptyState, Muted } from '@/app/ui/Text'
+import { CARD, CARD_HEADER, FAINT_XS, MUTED } from '@/app/ui/theme'
 
-const METAL_STYLES: Record<string, string> = {
-  bronze: 'bg-marketplace-orange-20 text-marketplace-orange-70 border-marketplace-orange-30',
-  expanded_bronze:
-    'bg-marketplace-orange-20 text-marketplace-orange-70 border-marketplace-orange-30',
-  silver: 'bg-ink-10 text-ink-50 border-ink-15',
-  gold: 'bg-brown-gravie-10 text-brown-gravie-50 border-brown-gravie-20',
-  platinum: 'bg-secondary-green-10 text-secondary-green-70 border-secondary-green-60',
-  catastrophic: 'bg-destructive/10 text-destructive border-destructive/30',
-}
-
-const NEUTRAL_CHIP = 'border-ink-15 bg-ink-10 text-ink-50'
-
-/** match / partial / none, as member-client's coverage-match-class. */
-const MATCH_STYLES: Record<CoverageMatch, string> = {
-  match: 'border-secondary-green-60 bg-secondary-green-10 text-secondary-green-70',
-  partial: 'border-marketplace-orange-30 bg-marketplace-orange-20 text-marketplace-orange-70',
-  none: 'border-brown-gravie-20 bg-brown-gravie-10 text-brown-gravie-50',
-}
-
-const STAT_LABEL = 'flex items-center gap-1 text-header-h5 uppercase text-brown-gravie-50'
-const STAT_VALUE = 'tnum mt-2 whitespace-nowrap text-header-h2 text-ink-60'
-const STAT_SUB = 'tnum mt-1 whitespace-nowrap text-paragraph-small text-brown-gravie-50 underline'
+const STAT_LABEL = `flex items-center gap-1 text-header-h5 uppercase ${TEXT.muted}`
+const STAT_VALUE = `tnum mt-2 whitespace-nowrap text-header-h2 ${TEXT.heading}`
+const STAT_SUB = `tnum mt-1 whitespace-nowrap ${MUTED} underline`
+/** Each stat column but the first is separated by a rule, once the grid kicks in. */
+const STAT_COL = 'lg:border-l lg:border-brown-gravie-20'
 
 function Stat({
   label,
@@ -63,7 +51,7 @@ function Stat({
       </div>
       <div className={STAT_VALUE}>
         {value}
-        {suffix && <span className="text-paragraph-small text-brown-gravie-50">{suffix}</span>}
+        {suffix && <span className={MUTED}>{suffix}</span>}
         {strikethrough && (
           <span className="ml-2 text-paragraph-regular font-bold text-destructive line-through">
             {strikethrough}
@@ -112,7 +100,7 @@ export default function PlanList({
   if (plans.length === 0) {
     return (
       <>
-        <p className="text-paragraph-small text-brown-gravie-50">No plans match these filters.</p>
+        <EmptyState>No plans match these filters.</EmptyState>
         {modal}
       </>
     )
@@ -127,14 +115,11 @@ export default function PlanList({
           const inNetwork = providers.filter((p) => p.inNetwork).length
           const covered = planDrugs.filter((d) => d.covered).length
           const easyEnroll = plan.enrollmentType === 'EASY_ENROLL'
-          const sbc =
-            plan.documents.find((d) => d.type === 'summary_of_benefits_and_coverage')?.url ??
-            plan.documents[0]?.url ??
-            null
+          const sbc = sbcUrl(plan.documents)
 
           return (
             <li key={plan.hiosPlanId} className={`${CARD} overflow-hidden`}>
-              <div className="flex items-center gap-3 border-b border-brown-gravie-20 bg-brown-gravie-10 px-5 py-3">
+              <div className={`${CARD_HEADER} items-center px-5 py-3`}>
                 {plan.logoUrl ? (
                   <Image
                     src={plan.logoUrl}
@@ -142,71 +127,60 @@ export default function PlanList({
                     width={96}
                     height={32}
                     unoptimized
-                    style={{ width: 'auto', height: '2rem', maxWidth: '100px' }}
-                    className="shrink-0 object-contain grayscale mix-blend-multiply"
+                    className="h-8 w-auto max-w-24 shrink-0 object-contain grayscale mix-blend-multiply"
                   />
                 ) : (
-                  <span className="shrink-0 text-paragraph-small text-brown-gravie-50">
+                  <Muted as="span" className="shrink-0">
                     {plan.carrierName}
-                  </span>
+                  </Muted>
                 )}
-                <h3 className="min-w-0 flex-1 text-header-h4 text-ink-60">{plan.planName}</h3>
+                <h3 className={`min-w-0 flex-1 text-header-h4 ${TEXT.heading}`}>{plan.planName}</h3>
               </div>
 
               <div className="grid grid-cols-1 items-start gap-4 p-5 lg:grid-cols-[12rem_1fr_1fr_1fr_auto] lg:gap-0">
                 <div className="flex flex-wrap gap-1.5 lg:pr-5">
                   <Tip copy={easyEnroll ? TOOLTIP_COPY.easyEnroll : TOOLTIP_COPY.selfEnroll}>
-                    <span
-                      className={`${CHIP} ${
-                        easyEnroll
-                          ? 'border-marketplace-orange-30 bg-marketplace-orange-20 text-marketplace-orange-70'
-                          : NEUTRAL_CHIP
-                      }`}
-                    >
+                    <Chip tone={easyEnroll ? 'orange' : 'neutral'}>
                       {easyEnroll ? '♥ Easy Enroll' : 'Self Enroll'}
-                    </span>
+                    </Chip>
                   </Tip>
                   <Tip copy={plan.offMarket ? TOOLTIP_COPY.preTax : TOOLTIP_COPY.postTax}>
-                    <span className={`${CHIP} ${NEUTRAL_CHIP}`}>
-                      {plan.offMarket ? 'Pre-tax' : 'Post-tax'}
-                    </span>
+                    <Chip>{plan.offMarket ? 'Pre-tax' : 'Post-tax'}</Chip>
                   </Tip>
                   {plan.metalLevel && (
                     <Tip copy={TOOLTIP_COPY[metalTooltip(plan.metalLevel)]}>
-                      <span
-                        className={`${CHIP} capitalize ${METAL_STYLES[plan.metalLevel] ?? NEUTRAL_CHIP}`}
-                      >
+                      <Chip tone={metalTone(plan.metalLevel)} className="capitalize">
                         {plan.metalLevel.replace('_', ' ')}
-                      </span>
+                      </Chip>
                     </Tip>
                   )}
                   {plan.planType && (
                     <Tip copy={TOOLTIP_COPY[planTypeTooltip(plan.planType)]}>
-                      <span className={`${CHIP} ${NEUTRAL_CHIP}`}>{plan.planType}</span>
+                      <Chip>{plan.planType}</Chip>
                     </Tip>
                   )}
                   {plan.hsaEligible && (
                     <Tip copy={TOOLTIP_COPY.hsa}>
-                      <span className={`${CHIP} ${NEUTRAL_CHIP}`}>HSA</span>
+                      <Chip>HSA</Chip>
                     </Tip>
                   )}
                   {providers.length > 0 && (
                     <Tip copy={TOOLTIP_COPY.providers}>
-                      <span className={`${CHIP} ${MATCH_STYLES[coverageMatch(inNetwork, providers.length)]}`}>
+                      <Chip tone={TONE_BY_MATCH[coverageMatch(inNetwork, providers.length)]}>
                         Providers {inNetwork} of {providers.length}
-                      </span>
+                      </Chip>
                     </Tip>
                   )}
                   {planDrugs.length > 0 && (
                     <Tip copy={TOOLTIP_COPY.prescriptions}>
-                      <span className={`${CHIP} ${MATCH_STYLES[coverageMatch(covered, planDrugs.length)]}`}>
+                      <Chip tone={TONE_BY_MATCH[coverageMatch(covered, planDrugs.length)]}>
                         Prescriptions {covered} of {planDrugs.length}
-                      </span>
+                      </Chip>
                     </Tip>
                   )}
                 </div>
 
-                <div className="lg:border-l lg:border-brown-gravie-20">
+                <div className={STAT_COL}>
                   <Stat
                     label={hasAllowance ? 'Your Monthly Premium' : 'Premium'}
                     tooltip={TOOLTIP_COPY.premium}
@@ -228,7 +202,7 @@ export default function PlanList({
                   />
                 </div>
 
-                <div className="lg:border-l lg:border-brown-gravie-20">
+                <div className={STAT_COL}>
                   <Stat
                     label="Deductible"
                     tooltip={TOOLTIP_COPY.deductible}
@@ -243,7 +217,7 @@ export default function PlanList({
                   />
                 </div>
 
-                <div className="lg:border-l lg:border-brown-gravie-20">
+                <div className={STAT_COL}>
                   <Stat
                     label="Out-of-Pocket Max"
                     tooltip={TOOLTIP_COPY.outOfPocket}
@@ -258,28 +232,16 @@ export default function PlanList({
                   />
                 </div>
 
-                <div className="flex flex-col items-start gap-2 lg:items-end lg:border-l lg:border-brown-gravie-20 lg:pl-5">
+                <div className={`flex flex-col items-start gap-2 lg:items-end lg:pl-5 ${STAT_COL}`}>
                   {sbc && (
-                    <a
-                      href={sbc}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-paragraph-small text-marketplace-orange-60 underline hover:text-marketplace-orange-70"
-                    >
-                      <FileText className="h-3.5 w-3.5" />
+                    <DocLink href={sbc} size="sm">
                       Summary of Benefits
-                    </a>
+                    </DocLink>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => onOpenPlan(plan.hiosPlanId)}
-                    className="rounded-xs border border-marketplace-orange-50 bg-white px-4 py-1.5 text-sm font-bold text-marketplace-orange-60 transition-colors hover:bg-marketplace-orange-10"
-                  >
+                  <Button type="button" variant="outline" onClick={() => onOpenPlan(plan.hiosPlanId)}>
                     Details
-                  </button>
-                  <span className="font-mono text-paragraph-extra-small text-brown-gravie-30">
-                    {plan.hiosPlanId}
-                  </span>
+                  </Button>
+                  <span className={`font-mono ${FAINT_XS}`}>{plan.hiosPlanId}</span>
                 </div>
               </div>
             </li>

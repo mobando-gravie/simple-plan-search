@@ -1,4 +1,5 @@
 'use server'
+import { errorMessage } from '@/app/lib/errors'
 import { labelSelections } from '@/app/lib/services/entityLookup'
 import { searchPlans } from '@/app/lib/services/planSearch'
 import { decodeUrlState } from '@/app/lib/urlState'
@@ -15,6 +16,6 @@ export async function refreshSearch(search: string): Promise<{ error?: string }>
     await searchPlans({ ...criteria, ...labelled }, { refresh: true })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Refresh failed.' }
+    return { error: errorMessage(e, 'Refresh failed.') }
   }
 }

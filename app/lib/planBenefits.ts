@@ -90,3 +90,12 @@ export function formatTier(tier: string | null): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ')
 }
+
+/** The SBC if the carrier published one, else whatever document came first. */
+export function sbcUrl(documents: { type: string; url: string }[]): string | null {
+  return (
+    documents.find((d) => d.type === 'summary_of_benefits_and_coverage')?.url ??
+    documents[0]?.url ??
+    null
+  )
+}

@@ -3,7 +3,11 @@ import { ChevronDown, ChevronUp, Plus, RotateCw, Search, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { refreshSearch } from '@/app/actions/search'
-import { formatCents } from '@/app/lib/money'
+import { addUnique } from '@/app/lib/array'
+import { minutesAgo } from '@/app/lib/dates'
+import { centsToDollarString, dollarsToCents, formatCents } from '@/app/lib/money'
+import { plural } from '@/app/lib/text'
+import { isZipCode } from '@/app/lib/validation'
 import type { Household } from '@/app/lib/household'
 import EntitySearch from '@/app/EntitySearch'
 import type { DrugHit, ProviderHit, SelectedDrug, SelectedProvider } from '@/app/lib/ideon/types'
@@ -15,52 +19,17 @@ import {
 } from '@/app/lib/services/planSearch'
 import { encodeCriteria } from '@/app/lib/urlState'
 import PlanResults from '@/app/PlanResults'
-import {
-  BANNER_ERROR,
-  BTN_OUTLINE,
-  BTN_SOLID,
-  BTN_TEXT,
-  CHECKBOX,
-  FIELD,
-  HINT,
-  LABEL,
-  PANEL,
-} from '@/app/ui/theme'
+import { Button, IconButton } from '@/app/ui/Button'
+import { BORDER, TEXT } from '@/app/ui/colors'
+import { CheckboxRow, Field } from '@/app/ui/Field'
+import { BANNER_ERROR, CARD, DIVIDED_TOP, MUTED, PANEL } from '@/app/ui/theme'
 
 /** A runaway-click guard, not a domain rule. */
 const MAX_CHILDREN = 10
 
 /** One card per person. Identity comes from the field label, not a separate title. */
-const PERSON_CARD =
-  'rounded-sm bg-brown-gravie-5 p-4 shadow-elevation-1'
-const ADD_CARD =
-  'flex flex-col items-start justify-center gap-2 rounded-sm border border-dashed border-brown-gravie-20 p-4'
-// FIELD is w-full; appending w-24 loses to it, so swap the class out.
-const AGE_FIELD = FIELD.replace('w-full', 'w-24')
-
-function Field({
-  label,
-  name,
-  hint,
-  ...input
-}: { label: string; name: string; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <label className="block">
-      <span className={LABEL}>{label}</span>
-      <input name={name} className={FIELD} {...input} />
-      {hint && <span className={HINT}>{hint}</span>}
-    </label>
-  )
-}
-
-function TobaccoCheckbox({ name, defaultChecked }: { name: string; defaultChecked: boolean }) {
-  return (
-    <label className="flex items-center gap-2 whitespace-nowrap text-paragraph-small text-ink-50">
-      <input type="checkbox" name={name} className={CHECKBOX} defaultChecked={defaultChecked} />
-      Uses tobacco
-    </label>
-  )
-}
+const PERSON_CARD = `${CARD} bg-brown-gravie-5 p-4`
+const ADD_CARD = `flex flex-col items-start justify-center gap-2 rounded-sm border border-dashed ${BORDER.subtle} p-4`
 
 type ChildRow = { id: number; age: string }
 
@@ -123,7 +92,7 @@ export default function SearchForm({
         `member ${criteria.household.member.age}`,
         criteria.household.spouse ? `spouse ${criteria.household.spouse.age}` : null,
         criteria.household.children.length > 0
-          ? `${criteria.household.children.length} ${criteria.household.children.length === 1 ? 'child' : 'children'}`
+          ? `${criteria.household.children.length} ${plural(criteria.household.children.length, 'child', 'children')}`
           : null,
         criteria.allowanceCents ? `${formatCents(criteria.allowanceCents)} allowance` : null,
         criteria.providers.length > 0 ? `${criteria.providers.length} providers` : null,
@@ -159,7 +128,7 @@ export default function SearchForm({
       },
       householdIncome: num(form, 'householdIncome'),
       allowanceCents:
-        allowanceDollars === undefined ? undefined : Math.round(allowanceDollars * 100),
+        allowanceDollars === undefined ? undefined : dollarsToCents(allowanceDollars),
       providers,
       drugs,
     }
@@ -187,11 +156,13 @@ export default function SearchForm({
             aria-expanded={!collapsed}
             className="flex w-full items-center gap-2 text-left"
           >
-            <span className="text-header-h5 uppercase text-brown-gravie-50">Search</span>
-            <span className="min-w-0 flex-1 truncate text-paragraph-small text-ink-50">
+            <span className={`text-header-h5 uppercase ${TEXT.muted}`}>Search</span>
+            <span className={`min-w-0 flex-1 truncate text-paragraph-small ${TEXT.body}`}>
               {summary}
             </span>
-            <span className="flex shrink-0 items-center gap-1 text-paragraph-small font-bold text-marketplace-orange-60">
+            <span
+              className={`flex shrink-0 items-center gap-1 text-paragraph-small font-bold ${TEXT.accent}`}
+            >
               {collapsed ? 'Edit' : 'Hide'}
               {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
             </span>
@@ -232,28 +203,25 @@ export default function SearchForm({
             placeholder="400"
             inputMode="numeric"
             hint="monthly, optional"
-            defaultValue={
-              criteria?.allowanceCents === undefined ? '' : criteria.allowanceCents / 100
-            }
+            defaultValue={centsToDollarString(criteria?.allowanceCents)}
           />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className={PERSON_CARD}>
-            <label className="block">
-              <span className={LABEL}>Member age</span>
-              <input
-                key={`member-${criteriaKey}`}
-                name="memberAge"
-                inputMode="numeric"
-                required
-                className={AGE_FIELD}
-                defaultValue={criteria?.household.member.age ?? 35}
-              />
-            </label>
+            <Field
+              key={`member-${criteriaKey}`}
+              label="Member age"
+              name="memberAge"
+              inputMode="numeric"
+              required
+              width="w-24"
+              defaultValue={criteria?.household.member.age ?? 35}
+            />
             <div className="mt-3">
-              <TobaccoCheckbox
+              <CheckboxRow
                 key={`member-tobacco-${criteriaKey}`}
+                label="Uses tobacco"
                 name="memberTobacco"
                 defaultChecked={criteria?.household.member.tobacco ?? false}
               />
@@ -263,29 +231,23 @@ export default function SearchForm({
           {spouse && (
             <div className={PERSON_CARD}>
               <div className="flex items-start justify-between gap-2">
-                <label className="block">
-                  <span className={LABEL}>Spouse age</span>
-                  <input
-                    name="spouseAge"
-                    inputMode="numeric"
-                    required
-                    className={AGE_FIELD}
-                    value={spouse.age}
-                    onChange={(e) => setSpouse({ age: e.target.value })}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setSpouse(null)}
-                  className="-mr-1 rounded-xs p-1 text-brown-gravie-30 transition-colors hover:text-destructive"
-                  aria-label="Remove spouse"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                <Field
+                  label="Spouse age"
+                  name="spouseAge"
+                  inputMode="numeric"
+                  required
+                  width="w-24"
+                  value={spouse.age}
+                  onChange={(e) => setSpouse({ age: e.target.value })}
+                />
+                <IconButton label="Remove spouse" onClick={() => setSpouse(null)} className="-mr-1">
+                  <X />
+                </IconButton>
               </div>
               <div className="mt-3">
-                <TobaccoCheckbox
+                <CheckboxRow
                   key={`spouse-tobacco-${criteriaKey}`}
+                  label="Uses tobacco"
                   name="spouseTobacco"
                   defaultChecked={criteria?.household.spouse?.tobacco ?? false}
                 />
@@ -296,73 +258,68 @@ export default function SearchForm({
           {children.map((child, i) => (
             <div key={child.id} className={PERSON_CARD}>
               <div className="flex items-start justify-between gap-2">
-                <label className="block">
-                  <span className={LABEL}>Child {i + 1} age</span>
-                  <input
-                    name="childAge"
-                    inputMode="numeric"
-                    required
-                    className={AGE_FIELD}
-                    value={child.age}
-                    onChange={(e) =>
-                      setChildren((rows) =>
-                        rows.map((r) => (r.id === child.id ? { ...r, age: e.target.value } : r)),
-                      )
-                    }
-                  />
-                </label>
-                <button
-                  type="button"
+                <Field
+                  label={`Child ${i + 1} age`}
+                  name="childAge"
+                  inputMode="numeric"
+                  required
+                  width="w-24"
+                  value={child.age}
+                  onChange={(e) =>
+                    setChildren((rows) =>
+                      rows.map((r) => (r.id === child.id ? { ...r, age: e.target.value } : r)),
+                    )
+                  }
+                />
+                <IconButton
+                  label={`Remove child ${i + 1}`}
                   onClick={() => setChildren((rows) => rows.filter((r) => r.id !== child.id))}
-                  className="-mr-1 rounded-xs p-1 text-brown-gravie-30 transition-colors hover:text-destructive"
-                  aria-label={`Remove child ${i + 1}`}
+                  className="-mr-1"
                 >
-                  <X className="h-4 w-4" />
-                </button>
+                  <X />
+                </IconButton>
               </div>
             </div>
           ))}
 
           <div className={ADD_CARD}>
             {!spouse && (
-              <button type="button" onClick={() => setSpouse({ age: '' })} className={BTN_TEXT}>
+              <Button type="button" variant="text" onClick={() => setSpouse({ age: '' })}>
                 <Plus />
                 Add spouse
-              </button>
+              </Button>
             )}
             {children.length < MAX_CHILDREN && (
-              <button
+              <Button
                 type="button"
+                variant="text"
                 onClick={() =>
                   setChildren((rows) => [
                     ...rows,
                     { id: Math.max(0, ...rows.map((r) => r.id)) + 1, age: '' },
                   ])
                 }
-                className={BTN_TEXT}
               >
                 <Plus />
                 Add child
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 border-t border-brown-gravie-20 pt-5 lg:grid-cols-2">
+        <div className={`grid grid-cols-1 gap-4 pt-5 lg:grid-cols-2 ${DIVIDED_TOP}`}>
           <EntitySearch<ProviderHit>
             label="Providers"
             placeholder="Search doctors by name…"
             buildUrl={(term) =>
-              /^\d{5}$/.test(zip)
-                ? `/api/providers?zip=${zip}&q=${encodeURIComponent(term)}`
-                : null
+              isZipCode(zip) ? `/api/providers?zip=${zip}&q=${encodeURIComponent(term)}` : null
             }
             disabledReason="Enter a 5-digit ZIP code to search providers."
             keyOf={(hit) => String(hit.npi)}
             renderHit={(hit) => (
               <span className="block truncate">
-                <span className="font-bold text-ink-60">{hit.name}</span>
-                <span className="text-brown-gravie-50">
+                <span className={`font-bold ${TEXT.heading}`}>{hit.name}</span>
+                <span className={TEXT.muted}>
                   {hit.specialty ? ` · ${hit.specialty}` : ''}
                   {hit.city ? ` · ${hit.city}` : ''}
                 </span>
@@ -371,9 +328,7 @@ export default function SearchForm({
             selected={providers.map((p) => ({ key: String(p.npi), label: p.name }))}
             onAdd={(hit) =>
               setProviders((rows) =>
-                rows.some((r) => r.npi === hit.npi)
-                  ? rows
-                  : [...rows, { npi: hit.npi, name: hit.name }],
+                addUnique(rows, { npi: hit.npi, name: hit.name }, (r) => String(r.npi)),
               )
             }
             onRemove={(key) => setProviders((rows) => rows.filter((r) => String(r.npi) !== key))}
@@ -390,29 +345,22 @@ export default function SearchForm({
               const ndc = hit.packages[0]?.ndc
               if (!ndc) return
               setDrugs((rows) =>
-                rows.some((r) => r.medId === hit.medId)
-                  ? rows
-                  : [...rows, { medId: hit.medId, ndc, name: hit.name }],
+                addUnique(rows, { medId: hit.medId, ndc, name: hit.name }, (r) => String(r.medId)),
               )
             }}
             onRemove={(key) => setDrugs((rows) => rows.filter((r) => String(r.medId) !== key))}
           />
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-brown-gravie-20 pt-5">
-          <button
-            type="button"
-            onClick={refresh}
-            disabled={pending || !criteria}
-            className={BTN_OUTLINE}
-          >
+        <div className={`flex justify-end gap-2 pt-5 ${DIVIDED_TOP}`}>
+          <Button type="button" variant="outline" onClick={refresh} disabled={pending || !criteria}>
             <RotateCw />
             Refresh from Ideon
-          </button>
-          <button type="submit" disabled={pending} className={`${BTN_SOLID} px-6`}>
+          </Button>
+          <Button type="submit" pending={pending} pendingLabel="Searching…" className="px-6">
             <Search />
-            {pending ? 'Searching…' : 'Search'}
-          </button>
+            Search
+          </Button>
           </div>
         </div>
       </form>
@@ -421,18 +369,18 @@ export default function SearchForm({
 
       {result && criteria && (
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-paragraph-small text-brown-gravie-50">
+          <div className={`flex flex-wrap gap-x-6 gap-y-1 ${MUTED}`}>
             <span>
-              <strong className="font-bold text-ink-60">{result.meta.total}</strong> plans in{' '}
+              <strong className={`font-bold ${TEXT.heading}`}>{result.meta.total}</strong> plans in{' '}
               {result.meta.countyName ?? result.meta.fipsCode}, {result.meta.state}
             </span>
             <span>
-              <strong className="font-bold text-ink-60">{result.meta.modifiersApplied}</strong> of{' '}
-              {result.plans.length} carry a Gravie modifier
+              <strong className={`font-bold ${TEXT.heading}`}>{result.meta.modifiersApplied}</strong>{' '}
+              of {result.plans.length} carry a Gravie modifier
             </span>
             <span>
               {result.cache.hit
-                ? `cached ${Math.round(result.cache.ageSeconds / 60)} min ago`
+                ? `cached ${minutesAgo(result.cache.ageSeconds)} min ago`
                 : 'fetched live from Ideon'}
             </span>
           </div>
