@@ -9,10 +9,29 @@ export type CachedSearch = {
   planCount: number
 }
 
-/** Sorted-key JSON so {a,b} and {b,a} hash to the same cache row. */
+/**
+ * Recursively sorts keys so {a,b} and {b,a} hash alike.
+ *
+ * Not `JSON.stringify(x, Object.keys(x).sort())`: an array second argument is a
+ * property *allowlist* applied at every depth, so nested keys absent from the top
+ * level are dropped. That silently reduced `applicants: [{age, smoker, child}]` to
+ * `[{}]` — two households of the same size shared a cache row whatever their ages.
+ */
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize)
+  if (value !== null && typeof value === 'object') {
+    const source = value as Record<string, unknown>
+    return Object.fromEntries(
+      Object.keys(source)
+        .sort()
+        .map((key) => [key, canonicalize(source[key])]),
+    )
+  }
+  return value
+}
+
 export function cacheKeyFor(request: Record<string, unknown>): string {
-  const canonical = JSON.stringify(request, Object.keys(request).sort())
-  return createHash('sha256').update(canonical).digest('hex')
+  return createHash('sha256').update(JSON.stringify(canonicalize(request))).digest('hex')
 }
 
 export async function findCached(cacheKey: string): Promise<CachedSearch | null> {

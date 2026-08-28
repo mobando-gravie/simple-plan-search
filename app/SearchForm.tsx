@@ -2,8 +2,10 @@
 import { Plus, RotateCw, Search, X } from 'lucide-react'
 import { useActionState, useRef, useState } from 'react'
 import { runSearch, type SearchState } from '@/app/actions/search'
-import type { Household } from '@/app/lib/household'
-import PlanTable from '@/app/PlanTable'
+import { householdSize, type Household } from '@/app/lib/household'
+import EntitySearch from '@/app/EntitySearch'
+import type { DrugHit, ProviderHit, SelectedDrug, SelectedProvider } from '@/app/lib/ideon/types'
+import PlanResults from '@/app/PlanResults'
 import {
   BANNER_ERROR,
   BTN_OUTLINE,
@@ -76,6 +78,9 @@ export default function SearchForm() {
   const [spouse, setSpouse] = useState<{ age: string } | null>(null)
   const [children, setChildren] = useState<ChildRow[]>([])
   const [seededFrom, setSeededFrom] = useState<Household | null>(null)
+  const [providers, setProviders] = useState<SelectedProvider[]>([])
+  const [drugs, setDrugs] = useState<SelectedDrug[]>([])
+  const [zip, setZip] = useState('')
 
   if (household && household !== seededFrom) {
     setSeededFrom(household)
@@ -93,6 +98,8 @@ export default function SearchForm() {
     <div className="space-y-8">
       <form ref={formRef} action={action} className={`${PANEL} space-y-6`}>
         <input ref={refreshRef} type="hidden" name="refresh" value="false" />
+        <input type="hidden" name="providersJson" value={JSON.stringify(providers)} />
+        <input type="hidden" name="drugsJson" value={JSON.stringify(drugs)} />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field
@@ -102,6 +109,7 @@ export default function SearchForm() {
             inputMode="numeric"
             required
             defaultValue={submitted?.zipCode ?? ''}
+            onChange={(e) => setZip(e.target.value)}
           />
           <Field
             label="Household income"
@@ -220,6 +228,57 @@ export default function SearchForm() {
           </div>
         </div>
 
+        <div className="grid grid-cols-1 gap-4 border-t border-brown-gravie-20 pt-5 lg:grid-cols-2">
+          <EntitySearch<ProviderHit>
+            label="Providers"
+            placeholder="Search doctors by name…"
+            buildUrl={(term) =>
+              /^\d{5}$/.test(zip)
+                ? `/api/providers?zip=${zip}&q=${encodeURIComponent(term)}`
+                : null
+            }
+            disabledReason="Enter a 5-digit ZIP code to search providers."
+            keyOf={(hit) => String(hit.npi)}
+            renderHit={(hit) => (
+              <span className="block truncate">
+                <span className="font-bold text-ink-60">{hit.name}</span>
+                <span className="text-brown-gravie-50">
+                  {hit.specialty ? ` · ${hit.specialty}` : ''}
+                  {hit.city ? ` · ${hit.city}` : ''}
+                </span>
+              </span>
+            )}
+            selected={providers.map((p) => ({ key: String(p.npi), label: p.name }))}
+            onAdd={(hit) =>
+              setProviders((rows) =>
+                rows.some((r) => r.npi === hit.npi)
+                  ? rows
+                  : [...rows, { npi: hit.npi, name: hit.name }],
+              )
+            }
+            onRemove={(key) => setProviders((rows) => rows.filter((r) => String(r.npi) !== key))}
+          />
+
+          <EntitySearch<DrugHit>
+            label="Prescriptions"
+            placeholder="Search drugs by name…"
+            buildUrl={(term) => `/api/drugs?q=${encodeURIComponent(term)}`}
+            keyOf={(hit) => String(hit.medId)}
+            renderHit={(hit) => <span className="block truncate">{hit.name}</span>}
+            selected={drugs.map((d) => ({ key: String(d.medId), label: d.name }))}
+            onAdd={(hit) => {
+              const ndc = hit.packages[0]?.ndc
+              if (!ndc) return
+              setDrugs((rows) =>
+                rows.some((r) => r.medId === hit.medId)
+                  ? rows
+                  : [...rows, { medId: hit.medId, ndc, name: hit.name }],
+              )
+            }}
+            onRemove={(key) => setDrugs((rows) => rows.filter((r) => String(r.medId) !== key))}
+          />
+        </div>
+
         <div className="flex justify-end gap-2 border-t border-brown-gravie-20 pt-5">
           <button type="button" onClick={refresh} disabled={pending} className={BTN_OUTLINE}>
             <RotateCw />
@@ -256,10 +315,7 @@ export default function SearchForm() {
                 : 'fetched live from Ideon'}
             </span>
           </div>
-          <PlanTable
-            plans={state.plans}
-            household={submitted.household}
-          />
+          <PlanResults plans={state.plans} householdSize={householdSize(submitted.household)} />
         </div>
       )}
     </div>

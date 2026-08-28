@@ -1,6 +1,12 @@
 import { lookupZipCounty, planSearchBody, searchPlans as ideonSearchPlans } from '../ideon/client'
+import { coveragesByPlan } from '../ideon/coverage'
 import { mapPlan, type MappedPlan } from '../ideon/mapPlan'
-import type { IdeonPlanSearchResponse, PlanSearchInput } from '../ideon/types'
+import type {
+  IdeonPlanSearchResponse,
+  PlanSearchInput,
+  SelectedDrug,
+  SelectedProvider,
+} from '../ideon/types'
 import { firstOfNextMonth } from '../dates'
 import { DEFAULT_HOUSEHOLD, householdSize, toApplicants, type Household } from '../household'
 import { applyModifier, findModifier, IDENTITY, type GravieModifier } from '../modifier'
@@ -23,6 +29,8 @@ export type SearchCriteria = {
   household: Household
   householdIncome?: number
   enrollmentDate?: string
+  providers: SelectedProvider[]
+  drugs: SelectedDrug[]
   perPage: number
   page: number
   sort: string
@@ -52,6 +60,8 @@ export type SearchResult = {
 export const DEFAULT_CRITERIA: SearchCriteria = {
   zipCode: '',
   household: DEFAULT_HOUSEHOLD,
+  providers: [],
+  drugs: [],
   perPage: 200,
   page: 1,
   sort: 'premium:asc',
@@ -101,6 +111,7 @@ async function fetchPlans(
   wanted: number,
 ): Promise<IdeonPlanSearchResponse> {
   const plans: IdeonPlanSearchResponse['plans'] = []
+  const coverages: NonNullable<IdeonPlanSearchResponse['coverages']> = []
   let meta: IdeonPlanSearchResponse['meta'] = {}
 
   for (let page = 1; plans.length < wanted; page++) {
@@ -108,10 +119,12 @@ async function fetchPlans(
     if (page === 1) meta = body.meta ?? {}
     const batch = body.plans ?? []
     plans.push(...batch)
+    // Drug coverage is response-level, so each page carries its own slice.
+    coverages.push(...(body.coverages ?? []))
     if (batch.length < IDEON_PAGE_SIZE) break
   }
 
-  return { plans: plans.slice(0, wanted), meta }
+  return { plans: plans.slice(0, wanted), coverages, meta }
 }
 
 export async function searchPlans(
@@ -131,6 +144,8 @@ export async function searchPlans(
     page: criteria.page,
     perPage: criteria.perPage,
     sort: criteria.sort,
+    providers: criteria.providers,
+    drugs: criteria.drugs,
   }
 
   const request = planSearchBody(input)
@@ -163,8 +178,9 @@ export async function searchPlans(
   }
 
   const modifiers = await activeModifiers()
+  const byPlan = coveragesByPlan(response.coverages)
   const plans = (response.plans ?? [])
-    .map(mapPlan)
+    .map((plan) => mapPlan(plan, byPlan.get(plan.id) ?? []))
     .map((plan) => priceWith(modifiers, plan, county.state))
 
   return {

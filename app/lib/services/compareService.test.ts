@@ -19,6 +19,8 @@ function ourPlan(overrides: Partial<PricedPlan> = {}): PricedPlan {
     deductibleFamilyCents: 155000,
     outOfPocketMaxIndividualCents: 1015000,
     outOfPocketMaxFamilyCents: 2030000,
+    logoUrl: null,
+    coverage: { providers: [], drugs: [] },
     applicantPremiums: [],
     compositeRated: false,
     gravieMultiplier: 1.035,

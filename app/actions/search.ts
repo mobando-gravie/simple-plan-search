@@ -1,5 +1,6 @@
 'use server'
 import type { Household } from '@/app/lib/household'
+import type { SelectedDrug, SelectedProvider } from '@/app/lib/ideon/types'
 import { searchPlans, type SearchCriteria, DEFAULT_CRITERIA } from '@/app/lib/services/planSearch'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
 
@@ -30,6 +31,21 @@ function optionalNumber(raw: FormDataEntryValue | null): number | undefined {
   if (typeof raw !== 'string' || raw.trim() === '') return undefined
   const n = Number(raw)
   return Number.isFinite(n) ? n : undefined
+}
+
+/**
+ * Selected providers and drugs travel as JSON rather than parallel repeated
+ * fields: each is several correlated values, and three `getAll` arrays could
+ * drift out of alignment on a removal.
+ */
+function selectedJson<T>(raw: FormDataEntryValue | null): T[] {
+  if (typeof raw !== 'string' || raw.trim() === '') return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as T[]) : []
+  } catch {
+    return []
+  }
 }
 
 export async function runSearch(_state: SearchState, formData: FormData): Promise<SearchState> {
@@ -71,6 +87,8 @@ export async function runSearch(_state: SearchState, formData: FormData): Promis
     household,
     householdIncome: optionalNumber(formData.get('householdIncome')),
     enrollmentDate: String(formData.get('enrollmentDate') ?? '').trim() || undefined,
+    providers: selectedJson<SelectedProvider>(formData.get('providersJson')),
+    drugs: selectedJson<SelectedDrug>(formData.get('drugsJson')),
   }
 
   try {

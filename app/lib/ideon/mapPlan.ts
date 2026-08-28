@@ -1,5 +1,6 @@
-import { dollarsToCents, parseCurrencyToCents } from '../money'
-import type { CostShare, IdeonPlan } from './types'
+import { dollarsToCents } from '../money'
+import { inNetworkCents, planCoverage, type PlanCoverage } from './coverage'
+import type { IdeonCoverage, IdeonPlan } from './types'
 
 /** One person's slice of a plan's premium, as Ideon returns it. */
 export type ApplicantPremium = {
@@ -26,16 +27,14 @@ export type MappedPlan = {
   deductibleFamilyCents: number | null
   outOfPocketMaxIndividualCents: number | null
   outOfPocketMaxFamilyCents: number | null
+  logoUrl: string | null
+  coverage: PlanCoverage
   applicantPremiums: ApplicantPremium[]
   /** True when no applicant carries a figure — the whole plan is tier priced. */
   compositeRated: boolean
 }
 
-function inNetworkCents(share: CostShare | undefined): number | null {
-  return parseCurrencyToCents(share?.in_network)
-}
-
-export function mapPlan(plan: IdeonPlan): MappedPlan {
+export function mapPlan(plan: IdeonPlan, drugCoverages: IdeonCoverage[] = []): MappedPlan {
   const premium = plan.premium
   const applicantPremiums: ApplicantPremium[] = (plan.premiums_by_applicant ?? []).map((a) => ({
     age: a.age ?? null,
@@ -55,6 +54,8 @@ export function mapPlan(plan: IdeonPlan): MappedPlan {
       typeof premium === 'number' && Number.isFinite(premium) ? dollarsToCents(premium) : null,
     effectiveYear: plan.effective_date ? Number(plan.effective_date.slice(0, 4)) : null,
     hsaEligible: plan.hsa_eligible === true,
+    logoUrl: plan.carrier?.logo_url ?? null,
+    coverage: planCoverage(plan, drugCoverages),
     deductibleIndividualCents: inNetworkCents(plan.individual_medical_deductible),
     deductibleFamilyCents: inNetworkCents(plan.family_medical_deductible),
     outOfPocketMaxIndividualCents: inNetworkCents(plan.individual_medical_moop),

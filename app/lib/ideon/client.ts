@@ -1,8 +1,20 @@
-import type { IdeonPlanSearchResponse, PlanSearchInput, ZipCounty } from './types'
+import type {
+  DrugHit,
+  IdeonPlanSearchResponse,
+  PlanSearchInput,
+  ProviderHit,
+  ZipCounty,
+} from './types'
 
 /** Plan search is v8; zip_counties is only published through v6. */
 const PLANS_VERSION = 'v8'
 const ZIP_COUNTY_VERSION = 'v6'
+
+/**
+ * Provider and drug coverage is only returned by v7, and v7 also changes the
+ * cost-share fields from objects to strings — see ideon/coverage.ts.
+ */
+const COVERAGE_VERSION = 'v7'
 
 function config() {
   const apiKey = process.env.IDEON_API_KEY
@@ -52,15 +64,115 @@ export function planSearchBody(input: PlanSearchInput): Record<string, unknown> 
     ...(input.enrollmentDate ? { enrollment_date: input.enrollmentDate } : {}),
     ...(input.householdIncome !== undefined ? { household_income: input.householdIncome } : {}),
     ...(input.householdSize !== undefined ? { household_size: input.householdSize } : {}),
+    ...(input.providers?.length ? { providers: input.providers.map((p) => ({ npi: p.npi })) } : {}),
+    ...(input.drugs?.length ? { drug_packages: input.drugs.map((d) => ({ id: d.ndc })) } : {}),
   }
+}
+
+/** Coverage is only available on v7, so the version follows the request content. */
+function planSearchVersion(input: PlanSearchInput): string {
+  return input.providers?.length || input.drugs?.length ? COVERAGE_VERSION : PLANS_VERSION
 }
 
 export async function searchPlans(input: PlanSearchInput): Promise<IdeonPlanSearchResponse> {
   const path = `/plans/medical/search?page=${input.page}&per_page=${input.perPage}`
-  return call<IdeonPlanSearchResponse>(path, PLANS_VERSION, {
+  return call<IdeonPlanSearchResponse>(path, planSearchVersion(input), {
     method: 'POST',
     body: planSearchBody(input),
   })
+}
+
+type DrugsResponse = {
+  drugs?: {
+    id?: string
+    name?: string | null
+    med_id?: number | null
+    drug_packages?: {
+      id?: string
+      proprietary_name?: string | null
+      non_proprietary_name?: string | null
+      active_ingredient_strength?: string | null
+    }[]
+  }[]
+}
+
+/**
+ * `require_formulary` is not optional in practice: without it Ideon returns parent
+ * labels with a null `med_id` and no packages, which cannot drive a coverage check.
+ */
+export async function searchDrugs(term: string, limit = 15): Promise<DrugHit[]> {
+  const path = `/drugs?search_term=${encodeURIComponent(term)}&require_formulary=true`
+  const body = await call<DrugsResponse>(path, COVERAGE_VERSION, { method: 'GET' })
+  const hits: DrugHit[] = []
+  for (const drug of body.drugs ?? []) {
+    if (typeof drug.med_id !== 'number' || !drug.name) continue
+    hits.push({
+      medId: drug.med_id,
+      name: drug.name,
+      packages: (drug.drug_packages ?? [])
+        .filter((pkg): pkg is { id: string } => typeof pkg.id === 'string')
+        .map((pkg) => ({ ndc: pkg.id, label: drug.name as string })),
+    })
+    if (hits.length >= limit) break
+  }
+  return hits
+}
+
+type ProvidersResponse = {
+  providers?: {
+    id?: number
+    npis?: number[]
+    presentation_name?: string | null
+    specialty?: string | null
+    type?: string | null
+    addresses?: { city?: string | null }[]
+  }[]
+}
+
+const NEAR_RADIUS_MILES = 25
+const WIDE_RADIUS_MILES = 100
+
+async function providersWithin(
+  zip: string,
+  term: string,
+  radiusMiles: number,
+  limit: number,
+): Promise<ProviderHit[]> {
+  const body = await call<ProvidersResponse>('/providers/search', COVERAGE_VERSION, {
+    method: 'POST',
+    body: {
+      zip_code: zip,
+      radius_miles: radiusMiles,
+      page: 1,
+      per_page: limit,
+      search_term: term,
+    },
+  })
+  return (body.providers ?? [])
+    .map((p) => {
+      // There is no `npi` field — the identifier lives in `id` / `npis[0]`.
+      const npi = p.id ?? p.npis?.[0]
+      if (typeof npi !== 'number' || !p.presentation_name) return null
+      return {
+        npi,
+        name: p.presentation_name,
+        specialty: p.specialty ?? null,
+        type: p.type ?? null,
+        city: p.addresses?.[0]?.city ?? null,
+      }
+    })
+    .filter((p): p is ProviderHit => p !== null)
+}
+
+/** Widens to 100 miles only when the near pass finds nothing — rural zips need it. */
+export async function searchProviders(
+  zip: string,
+  term: string,
+  limit = 15,
+): Promise<ProviderHit[]> {
+  const near = await providersWithin(zip, term, NEAR_RADIUS_MILES, limit)
+  if (near.length > 0) return near
+  return providersWithin(zip, term, WIDE_RADIUS_MILES, limit)
 }
 
 type ZipCountyResponse = {

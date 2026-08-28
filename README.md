@@ -100,12 +100,30 @@ side has orphan plans, `1` otherwise, so it drops into CI unchanged.
 
 ## Caching
 
+## Providers and prescriptions
+
+The search form takes provider and drug selections, typeahead-backed by
+`/api/providers` and `/api/drugs`. Selecting any of them switches the Ideon plan
+search to `Accept-Version: v7`, the only version that returns coverage, and each
+plan card then shows how many of your providers are in network and how many of
+your drugs are on formulary. Results can be filtered down to plans that cover all
+of both.
+
+Two Ideon quirks the code works around, both verified live:
+
+- v7 returns cost shares as one string (`"In-Network: $6,000 / …"`) where v8
+  returns an object, so `ideon/coverage.ts` reads both.
+- A plan's `coverages[]` rows repeat on **every** page of a paged search, so they
+  are deduped on `(plan_id, drug_package_id)` before counting.
+
+## Caching
+
 A search pulls 200 plans by default. Ideon caps a page at 50 however large
 `per_page` is, so the service walks pages until it has enough or the result set
 runs out, and caches the merged response.
 
 An Ideon plan search is cached in `sps_plan_search_cache`, keyed by the sha256 of
-the canonicalized request body, and served for `PLAN_CACHE_TTL_SECONDS` (default
+the recursively key-sorted request body, and served for `PLAN_CACHE_TTL_SECONDS` (default
 24 h). **Refresh from Ideon** on the search page and `--refresh` on the CLI both
 bypass it and overwrite the row. Zip → FIPS lookups are cached separately and
 without expiry.
