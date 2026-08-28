@@ -1,6 +1,7 @@
 import { lookupZipCounty, planSearchBody, searchPlans as ideonSearchPlans } from '../ideon/client'
 import { mapPlan, type MappedPlan } from '../ideon/mapPlan'
 import type { IdeonPlanSearchResponse, PlanSearchInput } from '../ideon/types'
+import { firstOfNextMonth } from '../dates'
 import { DEFAULT_HOUSEHOLD, householdSize, toApplicants, type Household } from '../household'
 import { applyModifier, findModifier, IDENTITY, type GravieModifier } from '../modifier'
 import { activeModifiers } from '../repos/modifierRepo'
@@ -126,7 +127,7 @@ export async function searchPlans(
     applicants: toApplicants(criteria.household),
     householdIncome: criteria.householdIncome,
     householdSize: householdSize(criteria.household),
-    enrollmentDate: criteria.enrollmentDate,
+    enrollmentDate: criteria.enrollmentDate ?? firstOfNextMonth(),
     page: criteria.page,
     perPage: criteria.perPage,
     sort: criteria.sort,

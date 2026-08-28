@@ -94,7 +94,7 @@ export default function SearchForm() {
       <form ref={formRef} action={action} className={`${PANEL} space-y-6`}>
         <input ref={refreshRef} type="hidden" name="refresh" value="false" />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field
             label="ZIP code"
             name="zipCode"
@@ -111,15 +111,6 @@ export default function SearchForm() {
             hint="optional"
             defaultValue={submitted?.householdIncome ?? ''}
           />
-          <label className="block">
-            <span className={LABEL}>Enrollment date</span>
-            <input
-              type="date"
-              name="enrollmentDate"
-              className={FIELD}
-              defaultValue={submitted?.enrollmentDate ?? ''}
-            />
-          </label>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
