@@ -1,6 +1,7 @@
 import { dollarsToCents } from '../money'
+import { BENEFIT_KEYS } from '../planBenefits'
 import { inNetworkCents, planCoverage, type PlanCoverage } from './coverage'
-import type { IdeonCoverage, IdeonPlan } from './types'
+import type { CostShare, IdeonCoverage, IdeonPlan } from './types'
 
 /** One person's slice of a plan's premium, as Ideon returns it. */
 export type ApplicantPremium = {
@@ -28,10 +29,28 @@ export type MappedPlan = {
   outOfPocketMaxIndividualCents: number | null
   outOfPocketMaxFamilyCents: number | null
   logoUrl: string | null
+  /** Off-market-capable plans get the Pre-tax tag; see 01-analyze.md. */
+  offMarket: boolean
+  documents: { type: string; url: string }[]
+  formularyUrl: string | null
+  /**
+   * Only the cost-share fields a details section can render. Keeping the whole
+   * Ideon plan here was ~7.5 KB each — 1.5 MB of payload for 200 plans.
+   */
+  benefits: Record<string, CostShare>
   coverage: PlanCoverage
   applicantPremiums: ApplicantPremium[]
   /** True when no applicant carries a figure — the whole plan is tier priced. */
   compositeRated: boolean
+}
+
+function pickBenefits(plan: IdeonPlan): Record<string, CostShare> {
+  const source = plan as unknown as Record<string, CostShare>
+  const picked: Record<string, CostShare> = {}
+  for (const key of BENEFIT_KEYS) {
+    if (source[key] !== undefined) picked[key] = source[key]
+  }
+  return picked
 }
 
 export function mapPlan(plan: IdeonPlan, drugCoverages: IdeonCoverage[] = []): MappedPlan {
@@ -55,6 +74,12 @@ export function mapPlan(plan: IdeonPlan, drugCoverages: IdeonCoverage[] = []): M
     effectiveYear: plan.effective_date ? Number(plan.effective_date.slice(0, 4)) : null,
     hsaEligible: plan.hsa_eligible === true,
     logoUrl: plan.carrier?.logo_url ?? null,
+    offMarket: plan.off_market === true,
+    documents: (plan.plan_documents ?? [])
+      .filter((d): d is { type: string; url: string } => !!d.url)
+      .map((d) => ({ type: d.type ?? 'document', url: d.url })),
+    formularyUrl: plan.drug_formulary_url ?? null,
+    benefits: pickBenefits(plan),
     coverage: planCoverage(plan, drugCoverages),
     deductibleIndividualCents: inNetworkCents(plan.individual_medical_deductible),
     deductibleFamilyCents: inNetworkCents(plan.family_medical_deductible),

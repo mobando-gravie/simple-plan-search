@@ -10,11 +10,14 @@ import type { PricedPlan } from '@/app/lib/services/planSearch'
 import { BTN_TEXT, CHECKBOX, FIELD, HINT, LABEL } from '@/app/ui/theme'
 
 const SORTS: { value: SortKey; label: string }[] = [
-  { value: 'premium', label: 'Premium' },
-  { value: 'free-floor', label: 'Free floor' },
-  { value: 'deductible', label: 'Deductible' },
-  { value: 'oopMax', label: 'Max OOP' },
+  { value: 'premium-asc', label: 'Premium, low to high' },
+  { value: 'premium-desc', label: 'Premium, high to low' },
+  { value: 'deductible-asc', label: 'Deductible, low to high' },
+  { value: 'deductible-desc', label: 'Deductible, high to low' },
+  { value: 'oopMax-asc', label: 'Max OOP, low to high' },
+  { value: 'oopMax-desc', label: 'Max OOP, high to low' },
   { value: 'name', label: 'Plan name' },
+  { value: 'free-floor', label: 'Free floor' },
 ]
 
 /** Multi-select as toggle chips — a native multiple-select is unusable on touch. */

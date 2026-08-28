@@ -103,9 +103,14 @@ type DrugsResponse = {
 export async function searchDrugs(term: string, limit = 15): Promise<DrugHit[]> {
   const path = `/drugs?search_term=${encodeURIComponent(term)}&require_formulary=true`
   const body = await call<DrugsResponse>(path, COVERAGE_VERSION, { method: 'GET' })
+  // Distinct labels can share a med_id, and med_id is the selection key — so a
+  // duplicate here becomes a duplicate React key in the results list.
+  const seen = new Set<number>()
   const hits: DrugHit[] = []
   for (const drug of body.drugs ?? []) {
     if (typeof drug.med_id !== 'number' || !drug.name) continue
+    if (seen.has(drug.med_id)) continue
+    seen.add(drug.med_id)
     hits.push({
       medId: drug.med_id,
       name: drug.name,

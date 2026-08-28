@@ -1,6 +1,6 @@
-hios_plan_id,carrier_id,state,rating_area,metal_level,effective_year,multiplier,flat_cents,label
-,,NY,,,2026,1.020,0,NY statewide default
-,,NY,,gold,2026,1.035,0,NY gold load
-,,NY,,bronze,2026,1.015,0,NY bronze load
-74289NY2770005,,,,,2026,1.055,0,Oscar gold classic override
-,74289,NY,,silver,2026,1.028,250,Oscar silver load plus admin fee
+hios_plan_id,carrier_id,state,rating_area,metal_level,effective_year,multiplier,flat_cents,enrollment_type,label
+,,NY,,,2026,1.020,0,,NY statewide default
+,,NY,,gold,2026,1.035,0,EASY_ENROLL,NY gold load
+,,NY,,bronze,2026,1.015,0,,NY bronze load
+74289NY2770005,,,,,2026,1.055,0,EASY_ENROLL,Oscar gold classic override
+,74289,NY,,silver,2026,1.028,250,SELF_ENROLL,Oscar silver load plus admin fee

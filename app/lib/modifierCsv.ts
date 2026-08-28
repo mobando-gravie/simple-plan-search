@@ -9,6 +9,7 @@ export type ParsedModifierRow = {
   effectiveYear: number | null
   multiplier: number
   flatCents: number
+  enrollmentType: string | null
   label: string | null
 }
 
@@ -32,6 +33,7 @@ const ALIASES: Record<keyof ParsedModifierRow, string[]> = {
   effectiveYear: ['effectiveyear', 'year', 'planyear', 'benefityear', 'coverageyear'],
   multiplier: ['multiplier', 'factor', 'ratefactor', 'premiumfactor', 'load', 'loadfactor'],
   flatCents: ['flatcents', 'flat', 'flatamount', 'flatadjustment', 'adjustmentcents', 'addon'],
+  enrollmentType: ['enrollmenttype', 'enrollment', 'enrolltype', 'carrierenrollmenttype', 'ichraenrollmenttype'],
   label: ['label', 'note', 'notes', 'description', 'comment', 'reason'],
 }
 
@@ -104,6 +106,15 @@ function parseFlat(raw: string | null, line: number, errors: ParseResult['errors
   return Math.round(cents)
 }
 
+/** Accepts EASY_ENROLL / easy enroll / EASY_ENROLLMENT and the self variants. */
+function normalizeEnrollment(raw: string | null): string | null {
+  if (raw === null) return null
+  const key = raw.trim().toUpperCase().replace(/[\s-]/g, '_')
+  if (key.startsWith('EASY')) return 'EASY_ENROLL'
+  if (key.startsWith('SELF')) return 'SELF_ENROLL'
+  return null
+}
+
 export function parseModifierCsv(text: string): ParseResult {
   const errors: ParseResult['errors'] = []
   const table = parseCsv(text)
@@ -124,10 +135,17 @@ export function parseModifierCsv(text: string): ParseResult {
 
   const unmappedColumns = table[0].filter((_, i) => !claimed.has(i) && header[i] !== '')
 
-  if (columnOf.multiplier === undefined && columnOf.flatCents === undefined) {
+  // The table is an overlay now, not only a premium adjustment: a row carrying
+  // just an enrollment type is legitimate.
+  if (
+    columnOf.multiplier === undefined &&
+    columnOf.flatCents === undefined &&
+    columnOf.enrollmentType === undefined
+  ) {
     errors.push({
       line: 1,
-      message: 'header has neither a multiplier nor a flat-amount column — nothing to apply',
+      message:
+        'header has no multiplier, flat-amount or enrollment-type column — nothing to apply',
     })
     return { rows: [], errors, unmappedColumns }
   }
@@ -174,6 +192,7 @@ export function parseModifierCsv(text: string): ParseResult {
       effectiveYear,
       multiplier,
       flatCents: parseFlat(cell(raw, 'flatCents'), line, errors),
+      enrollmentType: normalizeEnrollment(cell(raw, 'enrollmentType')),
       label: cell(raw, 'label'),
     })
   }

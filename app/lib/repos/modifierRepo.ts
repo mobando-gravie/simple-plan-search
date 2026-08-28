@@ -22,6 +22,7 @@ type ModifierRow = {
   effective_year: number | null
   multiplier: string
   flat_cents: string
+  enrollment_type: string | null
   label: string | null
 }
 
@@ -39,6 +40,7 @@ function toModifier(r: ModifierRow): GravieModifier {
     effectiveYear: r.effective_year,
     multiplier: Number(r.multiplier),
     flatCents: Number(r.flat_cents),
+    enrollmentType: r.enrollment_type,
     label: r.label,
   }
 }
@@ -107,7 +109,7 @@ export async function importBatch(input: {
   if (input.rows.length > 0) {
     const values: unknown[] = []
     const tuples = input.rows.map((row, i) => {
-      const base = i * 10
+      const base = i * 11
       values.push(
         batchId,
         row.hiosPlanId,
@@ -118,14 +120,15 @@ export async function importBatch(input: {
         row.effectiveYear,
         row.multiplier,
         row.flatCents,
+        row.enrollmentType,
         row.label,
       )
-      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10})`
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11})`
     })
     await query(
       `INSERT INTO sps_gravie_modifier
          (batch_id, hios_plan_id, carrier_id, state, rating_area, metal_level,
-          effective_year, multiplier, flat_cents, label)
+          effective_year, multiplier, flat_cents, enrollment_type, label)
        VALUES ${tuples.join(', ')}`,
       values,
     )

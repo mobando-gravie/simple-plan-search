@@ -37,6 +37,7 @@ test('the canonical header imports every row', () => {
     effectiveYear: 2026,
     multiplier: 1.055,
     flatCents: 0,
+    enrollmentType: null,
     label: 'Oscar plan override',
   })
 })
@@ -102,10 +103,27 @@ test('unrecognized columns are reported rather than silently dropped', () => {
   assert.equal(rows.length, 1)
 })
 
-test('a header with neither multiplier nor flat column is rejected outright', () => {
+test('a header with no multiplier, flat or enrollment column is rejected outright', () => {
   const { rows, errors } = parseModifierCsv('state,metal_level\nNY,gold\n')
   assert.equal(rows.length, 0)
-  assert.match(errors[0].message, /neither a multiplier nor a flat-amount/)
+  assert.match(errors[0].message, /no multiplier, flat-amount or enrollment-type/)
+})
+
+test('an enrollment-type-only row is legitimate now the table is an overlay', () => {
+  const { rows, errors } = parseModifierCsv('carrier_id,enrollment_type\n74289,Easy Enroll\n')
+  assert.equal(errors.length, 0)
+  assert.equal(rows[0].enrollmentType, 'EASY_ENROLL')
+  assert.equal(rows[0].multiplier, 1)
+  assert.equal(rows[0].flatCents, 0)
+})
+
+test('enrollment type accepts the spellings a MySQL export might use', () => {
+  const parse = (v: string) =>
+    parseModifierCsv(`state,enrollment_type\nNY,${v}\n`).rows[0].enrollmentType
+  assert.equal(parse('EASY_ENROLLMENT'), 'EASY_ENROLL')
+  assert.equal(parse('easy enroll'), 'EASY_ENROLL')
+  assert.equal(parse('SELF_ENROLLMENT'), 'SELF_ENROLL')
+  assert.equal(parse('something else'), null)
 })
 
 test('an empty file reports one error instead of throwing', () => {

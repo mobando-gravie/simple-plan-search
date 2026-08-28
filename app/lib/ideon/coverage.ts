@@ -20,10 +20,11 @@ export function inNetworkCents(share: CostShare | undefined): number | null {
 
 /**
  * Ideon reports an off-formulary drug as a tier rather than omitting it, and uses
- * two distinct values for it — "not_listed" (absent from the formulary) and
- * "not_covered" (listed and excluded). Both mean not covered.
+ * three distinct values for it. Mirrors member-client's `not-covered-statuses`
+ * (ichra/plan_selection/utils.cljs:3) — an earlier version of this set here was
+ * missing `no_coverage`, so those drugs counted as covered.
  */
-const UNCOVERED_TIERS = new Set(['not_listed', 'not_covered'])
+const UNCOVERED_TIERS = new Set(['no_coverage', 'not_listed', 'not_covered'])
 
 export function isCoveredTier(tier: string | null | undefined): boolean {
   return typeof tier === 'string' && tier !== '' && !UNCOVERED_TIERS.has(tier)
@@ -72,4 +73,15 @@ export function planCoverage(plan: IdeonPlan, drugCoverages: IdeonCoverage[] = [
         quantityLimit: c.quantity_limit === true,
       })),
   }
+}
+
+/**
+ * Three states, matching member-client's `coverage-match-class`. A boolean would
+ * render "1 of 3 covered" identically to "0 of 3".
+ */
+export type CoverageMatch = 'match' | 'partial' | 'none'
+
+export function coverageMatch(covered: number, total: number): CoverageMatch {
+  if (total > 0 && covered === total) return 'match'
+  return covered === 0 ? 'none' : 'partial'
 }

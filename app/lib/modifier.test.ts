@@ -14,6 +14,7 @@ function modifier(overrides: Partial<GravieModifier> = {}): GravieModifier {
     effectiveYear: null,
     multiplier: 1,
     flatCents: 0,
+    enrollmentType: null,
     label: null,
     ...overrides,
   }

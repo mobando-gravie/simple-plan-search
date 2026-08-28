@@ -1,8 +1,12 @@
-import { Check, X } from 'lucide-react'
+'use client'
+import { FileText, Info } from 'lucide-react'
 import Image from 'next/image'
+import { useState } from 'react'
+import { coverageMatch, type CoverageMatch } from '@/app/lib/ideon/coverage'
+import type { SelectedDrug } from '@/app/lib/ideon/types'
 import { formatCents, netPremiumCents } from '@/app/lib/money'
-import { allProvidersInNetwork, coversAllDrugs } from '@/app/lib/planFilter'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
+import PlanDetailsModal from '@/app/PlanDetailsModal'
 import { CARD, CHIP } from '@/app/ui/theme'
 
 const METAL_STYLES: Record<string, string> = {
@@ -15,32 +19,45 @@ const METAL_STYLES: Record<string, string> = {
   catastrophic: 'bg-destructive/10 text-destructive border-destructive/30',
 }
 
-const STAT_LABEL = 'text-header-h6 uppercase text-brown-gravie-50'
-const STAT_VALUE = 'tnum text-header-h3 text-ink-60'
-const STAT_SUB = 'tnum mt-0.5 text-paragraph-extra-small text-brown-gravie-50 underline'
+const NEUTRAL_CHIP = 'border-ink-15 bg-ink-10 text-ink-50'
+
+/** match / partial / none, as member-client's coverage-match-class. */
+const MATCH_STYLES: Record<CoverageMatch, string> = {
+  match: 'border-secondary-green-60 bg-secondary-green-10 text-secondary-green-70',
+  partial: 'border-marketplace-orange-30 bg-marketplace-orange-20 text-marketplace-orange-70',
+  none: 'border-brown-gravie-20 bg-brown-gravie-10 text-brown-gravie-50',
+}
+
+const STAT_LABEL = 'flex items-center gap-1 text-header-h5 uppercase text-brown-gravie-50'
+const STAT_VALUE = 'tnum mt-2 text-header-h2 text-ink-60'
+const STAT_SUB = 'tnum mt-1 text-paragraph-small text-brown-gravie-50 underline'
 
 function Stat({
   label,
+  tooltip,
   value,
-  suffix,
   strikethrough,
+  suffix,
   sub,
 }: {
   label: string
+  tooltip: string
   value: string
-  suffix?: string
-  /** The pre-allowance premium, shown struck through beside the net figure. */
   strikethrough?: string
+  suffix?: string
   sub?: string
 }) {
   return (
-    <div>
-      <div className={STAT_LABEL}>{label}</div>
+    <div className="px-5">
+      <div className={STAT_LABEL}>
+        {label}
+        <Info className="h-3.5 w-3.5 text-brown-gravie-30" aria-label={tooltip} />
+      </div>
       <div className={STAT_VALUE}>
         {value}
-        {suffix && <span className="text-paragraph-extra-small text-brown-gravie-50">{suffix}</span>}
+        {suffix && <span className="text-paragraph-small text-brown-gravie-50">{suffix}</span>}
         {strikethrough && (
-          <span className="ml-2 text-paragraph-small font-bold text-destructive line-through">
+          <span className="ml-2 text-paragraph-regular font-bold text-destructive line-through">
             {strikethrough}
           </span>
         )}
@@ -50,136 +67,183 @@ function Stat({
   )
 }
 
-function CoverageChip({ ok, label }: { ok: boolean; label: string }) {
-  const tone = ok
-    ? 'border-secondary-green-60 bg-secondary-green-10 text-secondary-green-70'
-    : 'border-brown-gravie-20 bg-brown-gravie-10 text-brown-gravie-50'
-  return (
-    <span className={`${CHIP} ${tone}`}>
-      {ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-      {label}
-    </span>
-  )
-}
-
 export default function PlanList({
   plans,
   allowanceCents = 0,
+  drugs = [],
 }: {
   plans: PricedPlan[]
   allowanceCents?: number
+  drugs?: SelectedDrug[]
 }) {
+  const [openPlan, setOpenPlan] = useState<PricedPlan | null>(null)
+
   if (plans.length === 0) {
-    return (
-      <p className="text-paragraph-small text-brown-gravie-50">No plans match these filters.</p>
-    )
+    return <p className="text-paragraph-small text-brown-gravie-50">No plans match these filters.</p>
   }
 
   const hasAllowance = allowanceCents > 0
 
   return (
-    <ul className="space-y-3">
-      {plans.map((plan) => {
-        const providers = plan.coverage.providers
-        const drugs = plan.coverage.drugs
-        return (
-          <li key={plan.hiosPlanId} className={`${CARD} p-5`}>
-            <div className="flex items-start gap-3">
-              {plan.logoUrl ? (
-                <Image
-                  src={plan.logoUrl}
-                  alt={plan.carrierName}
-                  width={96}
-                  height={32}
-                  unoptimized
-                  style={{ width: 'auto', height: '2rem', maxWidth: '100px' }}
-                  className="shrink-0 object-contain"
-                />
-              ) : (
-                <span className="shrink-0 text-paragraph-small text-brown-gravie-50">
-                  {plan.carrierName}
-                </span>
-              )}
-              <h3 className="min-w-0 flex-1 text-header-h4 text-ink-60">{plan.planName}</h3>
-            </div>
+    <>
+      <ul className="space-y-4">
+        {plans.map((plan) => {
+          const providers = plan.coverage.providers
+          const planDrugs = plan.coverage.drugs
+          const inNetwork = providers.filter((p) => p.inNetwork).length
+          const covered = planDrugs.filter((d) => d.covered).length
+          const easyEnroll = plan.enrollmentType === 'EASY_ENROLL'
+          const sbc =
+            plan.documents.find((d) => d.type === 'summary_of_benefits_and_coverage')?.url ??
+            plan.documents[0]?.url ??
+            null
 
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <Stat
-                label={hasAllowance ? 'Your monthly premium' : 'Premium'}
-                value={formatCents(
-                  hasAllowance
-                    ? netPremiumCents(plan.finalPremiumCents, allowanceCents)
-                    : plan.finalPremiumCents,
+          return (
+            <li key={plan.hiosPlanId} className={`${CARD} overflow-hidden`}>
+              <div className="flex items-center gap-3 border-b border-brown-gravie-20 bg-brown-gravie-10 px-5 py-3">
+                {plan.logoUrl ? (
+                  <Image
+                    src={plan.logoUrl}
+                    alt={plan.carrierName}
+                    width={96}
+                    height={32}
+                    unoptimized
+                    style={{ width: 'auto', height: '2rem', maxWidth: '100px' }}
+                    className="shrink-0 object-contain"
+                  />
+                ) : (
+                  <span className="shrink-0 text-paragraph-small text-brown-gravie-50">
+                    {plan.carrierName}
+                  </span>
                 )}
-                suffix="/mo"
-                strikethrough={
-                  hasAllowance && plan.finalPremiumCents !== null
-                    ? formatCents(plan.finalPremiumCents)
-                    : undefined
-                }
-                sub={hasAllowance ? `after ${formatCents(allowanceCents)} benefit` : undefined}
-              />
-              <Stat
-                label="Deductible"
-                value={formatCents(plan.deductibleIndividualCents)}
-                suffix=" / person"
-                sub={
-                  plan.deductibleFamilyCents === null
-                    ? undefined
-                    : `${formatCents(plan.deductibleFamilyCents)} / household`
-                }
-              />
-              <Stat
-                label="Max OOP"
-                value={formatCents(plan.outOfPocketMaxIndividualCents)}
-                suffix=" / person"
-                sub={
-                  plan.outOfPocketMaxFamilyCents === null
-                    ? undefined
-                    : `${formatCents(plan.outOfPocketMaxFamilyCents)} / household`
-                }
-              />
-            </div>
+                <h3 className="min-w-0 flex-1 text-header-h4 text-ink-60">{plan.planName}</h3>
+                {plan.offMarket && (
+                  <span
+                    className="flex shrink-0 items-center gap-1 text-paragraph-small text-brown-gravie-50"
+                    title="Off-exchange premiums are generally paid pre-tax."
+                  >
+                    You may save on taxes!
+                    <Info className="h-3.5 w-3.5" />
+                  </span>
+                )}
+              </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {plan.metalLevel && (
-                <span
-                  className={`${CHIP} capitalize ${METAL_STYLES[plan.metalLevel] ?? 'bg-ink-10 text-ink-50 border-ink-15'}`}
-                >
-                  {plan.metalLevel.replace('_', ' ')}
-                </span>
-              )}
-              {plan.planType && (
-                <span className={`${CHIP} border-ink-15 bg-ink-10 text-ink-50`}>
-                  {plan.planType}
-                </span>
-              )}
-              {plan.hsaEligible && (
-                <span
-                  className={`${CHIP} border-secondary-green-60 bg-secondary-green-10 text-secondary-green-70`}
-                >
-                  HSA Eligible
-                </span>
-              )}
-              {providers.length > 0 && (
-                <CoverageChip
-                  ok={allProvidersInNetwork(plan)}
-                  label={`${providers.filter((p) => p.inNetwork).length}/${providers.length} providers`}
-                />
-              )}
-              {drugs.length > 0 && (
-                <CoverageChip
-                  ok={coversAllDrugs(plan)}
-                  label={`${drugs.filter((d) => d.covered).length}/${drugs.length} drugs`}
-                />
-              )}
-              <span className="ml-auto font-mono text-paragraph-extra-small text-brown-gravie-30">
-                {plan.hiosPlanId}
-              </span>
-            </div>
-          </li>
-        )
-      })}
-    </ul>
+              <div className="grid grid-cols-1 items-start gap-4 p-5 lg:grid-cols-[minmax(11rem,auto)_1fr_1fr_1fr_auto] lg:gap-0">
+                <div className="flex flex-wrap gap-1.5 lg:pr-5">
+                  <span
+                    className={`${CHIP} ${
+                      easyEnroll
+                        ? 'border-marketplace-orange-30 bg-marketplace-orange-20 text-marketplace-orange-70'
+                        : NEUTRAL_CHIP
+                    }`}
+                  >
+                    {easyEnroll ? '♥ Easy Enroll' : 'Self Enroll'}
+                  </span>
+                  <span className={`${CHIP} ${NEUTRAL_CHIP}`}>
+                    {plan.offMarket ? 'Pre-tax' : 'Post-tax'}
+                  </span>
+                  {plan.metalLevel && (
+                    <span
+                      className={`${CHIP} capitalize ${METAL_STYLES[plan.metalLevel] ?? NEUTRAL_CHIP}`}
+                    >
+                      {plan.metalLevel.replace('_', ' ')}
+                    </span>
+                  )}
+                  {plan.planType && (
+                    <span className={`${CHIP} ${NEUTRAL_CHIP}`}>{plan.planType}</span>
+                  )}
+                  {plan.hsaEligible && <span className={`${CHIP} ${NEUTRAL_CHIP}`}>HSA</span>}
+                  {providers.length > 0 && (
+                    <span className={`${CHIP} ${MATCH_STYLES[coverageMatch(inNetwork, providers.length)]}`}>
+                      Providers {inNetwork} of {providers.length}
+                    </span>
+                  )}
+                  {planDrugs.length > 0 && (
+                    <span className={`${CHIP} ${MATCH_STYLES[coverageMatch(covered, planDrugs.length)]}`}>
+                      Prescriptions {covered} of {planDrugs.length}
+                    </span>
+                  )}
+                </div>
+
+                <div className="lg:border-l lg:border-brown-gravie-20">
+                  <Stat
+                    label={hasAllowance ? 'Your Monthly Premium' : 'Premium'}
+                    tooltip="Monthly premium after the Gravie modifier, less any allowance."
+                    value={formatCents(
+                      hasAllowance
+                        ? netPremiumCents(plan.finalPremiumCents, allowanceCents)
+                        : plan.finalPremiumCents,
+                    )}
+                    suffix="/mo"
+                    strikethrough={
+                      hasAllowance && plan.finalPremiumCents !== null
+                        ? formatCents(plan.finalPremiumCents)
+                        : undefined
+                    }
+                    sub={hasAllowance ? `after ${formatCents(allowanceCents)} benefit` : undefined}
+                  />
+                </div>
+
+                <div className="lg:border-l lg:border-brown-gravie-20">
+                  <Stat
+                    label="Deductible"
+                    tooltip="What you pay before the plan starts sharing costs."
+                    value={formatCents(plan.deductibleIndividualCents)}
+                    suffix=" / person"
+                    sub={
+                      plan.deductibleFamilyCents === null
+                        ? undefined
+                        : `${formatCents(plan.deductibleFamilyCents)} / household`
+                    }
+                  />
+                </div>
+
+                <div className="lg:border-l lg:border-brown-gravie-20">
+                  <Stat
+                    label="Out-of-Pocket Max"
+                    tooltip="The most you pay in a year before the plan covers everything."
+                    value={formatCents(plan.outOfPocketMaxIndividualCents)}
+                    suffix=" / person"
+                    sub={
+                      plan.outOfPocketMaxFamilyCents === null
+                        ? undefined
+                        : `${formatCents(plan.outOfPocketMaxFamilyCents)} / household`
+                    }
+                  />
+                </div>
+
+                <div className="flex flex-col items-start gap-2 lg:items-end lg:border-l lg:border-brown-gravie-20 lg:pl-5">
+                  {sbc && (
+                    <a
+                      href={sbc}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-paragraph-small text-marketplace-orange-60 underline hover:text-marketplace-orange-70"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Summary of Benefits
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setOpenPlan(plan)}
+                    className="rounded-xs border border-marketplace-orange-50 bg-white px-4 py-1.5 text-sm font-bold text-marketplace-orange-60 transition-colors hover:bg-marketplace-orange-10"
+                  >
+                    Details
+                  </button>
+                  <span className="font-mono text-paragraph-extra-small text-brown-gravie-30">
+                    {plan.hiosPlanId}
+                  </span>
+                </div>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+
+      {openPlan && (
+        <PlanDetailsModal plan={openPlan} drugs={drugs} onClose={() => setOpenPlan(null)} />
+      )}
+    </>
   )
 }

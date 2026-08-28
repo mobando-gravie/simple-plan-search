@@ -14,6 +14,8 @@ export type GravieModifier = {
   effectiveYear: number | null
   multiplier: number
   flatCents: number
+  /** EASY_ENROLL | SELF_ENROLL | null — Gravie's overlay, absent from Ideon. */
+  enrollmentType: string | null
   label: string | null
 }
 

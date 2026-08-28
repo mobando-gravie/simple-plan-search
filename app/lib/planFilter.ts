@@ -1,6 +1,14 @@
 import type { PricedPlan } from './services/planSearch'
 
-export type SortKey = 'premium' | 'deductible' | 'oopMax' | 'name' | 'free-floor'
+export type SortKey =
+  | 'premium-asc'
+  | 'premium-desc'
+  | 'deductible-asc'
+  | 'deductible-desc'
+  | 'oopMax-asc'
+  | 'oopMax-desc'
+  | 'name'
+  | 'free-floor'
 
 export type PlanFilterState = {
   search: string
@@ -25,7 +33,7 @@ export const DEFAULT_FILTERS: PlanFilterState = {
   maxDeductibleCents: null,
   coversAllDrugs: false,
   allProvidersInNetwork: false,
-  sort: 'premium',
+  sort: 'premium-asc',
 }
 
 /** The distinct values present in a result set, for populating the controls. */
@@ -64,29 +72,26 @@ function compareFreeFloor(allowanceCents: number, a: number, b: number): number 
   return aFree ? b - a : a - b
 }
 
+const FIELD_OF: Record<string, (p: PricedPlan) => number | null> = {
+  premium: (p) => p.finalPremiumCents,
+  deductible: (p) => p.deductibleIndividualCents,
+  oopMax: (p) => p.outOfPocketMaxIndividualCents,
+}
+
 /** Unpriced plans sort last whichever direction is chosen — they carry no signal. */
 function compareBy(key: SortKey, a: PricedPlan, b: PricedPlan, allowanceCents = 0): number {
   if (key === 'name') return a.planName.localeCompare(b.planName)
-  if (key === 'free-floor') {
-    const av = a.finalPremiumCents
-    const bv = b.finalPremiumCents
-    if (av === null && bv === null) return 0
-    if (av === null) return 1
-    if (bv === null) return -1
-    return compareFreeFloor(allowanceCents, av, bv)
-  }
-  const pick = (p: PricedPlan) =>
-    key === 'premium'
-      ? p.finalPremiumCents
-      : key === 'deductible'
-        ? p.deductibleIndividualCents
-        : p.outOfPocketMaxIndividualCents
+
+  const [field, direction] = key.split('-')
+  const pick = key === 'free-floor' ? FIELD_OF.premium : FIELD_OF[field]
   const av = pick(a)
   const bv = pick(b)
   if (av === null && bv === null) return 0
   if (av === null) return 1
   if (bv === null) return -1
-  return av - bv
+
+  if (key === 'free-floor') return compareFreeFloor(allowanceCents, av, bv)
+  return direction === 'desc' ? bv - av : av - bv
 }
 
 /** The allowance is a search input, not a filter control, so it arrives separately. */

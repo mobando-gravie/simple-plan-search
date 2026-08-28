@@ -325,7 +325,11 @@ export default function SearchForm() {
                 : 'fetched live from Ideon'}
             </span>
           </div>
-          <PlanResults plans={state.plans} allowanceCents={submitted.allowanceCents ?? 0} />
+          <PlanResults
+            plans={state.plans}
+            allowanceCents={submitted.allowanceCents ?? 0}
+            drugs={submitted.drugs}
+          />
         </div>
       )}
     </div>

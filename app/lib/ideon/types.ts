@@ -53,6 +53,11 @@ export type IdeonPlan = {
   individual_medical_moop?: CostShare
   family_medical_moop?: CostShare
   carrier?: { id?: string; issuer_id?: string; name?: string; logo_url?: string | null } | null
+  on_market?: boolean | null
+  off_market?: boolean | null
+  plan_documents?: { type?: string | null; url?: string | null }[]
+  benefits_summary_url?: string | null
+  drug_formulary_url?: string | null
   /** Present only on a v7 search that supplied `providers`. */
   providers?: { npi?: number | null; in_network?: boolean | null }[]
 }

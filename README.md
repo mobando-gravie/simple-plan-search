@@ -42,6 +42,12 @@ and a single-plan override can coexist:
 A plan with no matching row is shown **unmodified** rather than silently priced at
 the raw Ideon premium.
 
+The table is Gravie's per-plan **overlay**, not only a premium adjustment: a row
+may also carry `enrollment_type` (`EASY_ENROLL` / `SELF_ENROLL`), which drives the
+enrollment tag on the card. Ideon has no enrollment field, so this is the only
+source for it. A row carrying just an enrollment type and no premium change is
+valid.
+
 Import from **Modifiers → Import**, or:
 
 ```bash
@@ -98,6 +104,21 @@ than dropping them; those are filtered out and the count reported.
 Exit code is `0` when every matched plan is within `--tolerance-cents` and neither
 side has orphan plans, `1` otherwise, so it drops into CI unchanged.
 
+## Plan cards
+
+Each card follows the member-facing ICHRA card: a header strip with the carrier
+logo, plan name and a pre-tax note, then a tag stack (enrollment, tax treatment,
+metal, plan type, HSA, and provider/prescription coverage counts), three money
+columns, and links out to the plan documents.
+
+Coverage tags have three states — all covered, partial, none — mirroring
+member-client's `coverage-match-class`, so "1 of 3 covered" no longer looks
+identical to "0 of 3".
+
+**Details** opens a modal with the plan's Documents, Care Services, your
+prescriptions and their tiers, Prescription Coverage and Additional Coverages,
+each split In Network / Out of Network. Every external link opens in a new tab.
+
 ## ICHRA allowance
 
 Setting an allowance on the search switches the card to the member's view: the net
@@ -128,6 +149,21 @@ Two Ideon quirks the code works around, both verified live:
   returns an object, so `ideon/coverage.ts` reads both.
 - A plan's `coverages[]` rows repeat on **every** page of a paged search, so they
   are deduped on `(plan_id, drug_package_id)` before counting.
+
+## Plan cards
+
+Each card follows the member-facing ICHRA card: a header strip with the carrier
+logo, plan name and a pre-tax note, then a tag stack (enrollment, tax treatment,
+metal, plan type, HSA, and provider/prescription coverage counts), three money
+columns, and links out to the plan documents.
+
+Coverage tags have three states — all covered, partial, none — mirroring
+member-client's `coverage-match-class`, so "1 of 3 covered" no longer looks
+identical to "0 of 3".
+
+**Details** opens a modal with the plan's Documents, Care Services, your
+prescriptions and their tiers, Prescription Coverage and Additional Coverages,
+each split In Network / Out of Network. Every external link opens in a new tab.
 
 ## ICHRA allowance
 

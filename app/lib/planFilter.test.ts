@@ -21,6 +21,10 @@ function plan(over: Partial<PricedPlan> = {}): PricedPlan {
     effectiveYear: 2026,
     hsaEligible: false,
     logoUrl: null,
+    offMarket: true,
+    documents: [],
+    formularyUrl: null,
+    benefits: {},
     coverage: { providers: [], drugs: [] },
     deductibleIndividualCents: 500000,
     deductibleFamilyCents: 1000000,
@@ -28,6 +32,7 @@ function plan(over: Partial<PricedPlan> = {}): PricedPlan {
     outOfPocketMaxFamilyCents: 1600000,
     applicantPremiums: [],
     compositeRated: false,
+    enrollmentType: 'SELF_ENROLL',
     gravieMultiplier: 1,
     gravieFlatCents: 0,
     finalPremiumCents: 40000,
@@ -136,10 +141,10 @@ test('sorting by each key orders as expected', () => {
     plan({ hiosPlanId: 'B', planName: 'Beta', deductibleIndividualCents: 100, outOfPocketMaxIndividualCents: 900 }),
     plan({ hiosPlanId: 'A', planName: 'Alpha', deductibleIndividualCents: 900, outOfPocketMaxIndividualCents: 100 }),
   ]
-  const order = (sort: 'deductible' | 'oopMax' | 'name') =>
+  const order = (sort: 'deductible-asc' | 'oopMax-asc' | 'name') =>
     applyPlanFilters(plans, { ...DEFAULT_FILTERS, sort }).map((p) => p.hiosPlanId)
-  assert.deepEqual(order('deductible'), ['B', 'A'])
-  assert.deepEqual(order('oopMax'), ['A', 'B'])
+  assert.deepEqual(order('deductible-asc'), ['B', 'A'])
+  assert.deepEqual(order('oopMax-asc'), ['A', 'B'])
   assert.deepEqual(order('name'), ['A', 'B'])
 })
 

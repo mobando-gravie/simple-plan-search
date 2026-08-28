@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  coverageMatch,
   coveragesByPlan,
   inNetworkCents,
   inNetworkCostShare,
@@ -35,8 +36,10 @@ test('an absent cost share is null in either version', () => {
   assert.equal(inNetworkCents(undefined), null)
 })
 
-test('both of Ideon’s uncovered tiers count as not covered', () => {
-  // "not_listed" = absent from the formulary; "not_covered" = listed and excluded.
+test('all three of Ideon’s uncovered tiers count as not covered', () => {
+  // member-client's not-covered-statuses has three values; an earlier version
+  // here was missing no_coverage, so those drugs counted as covered.
+  assert.equal(isCoveredTier('no_coverage'), false)
   assert.equal(isCoveredTier('not_listed'), false)
   assert.equal(isCoveredTier('not_covered'), false)
   assert.equal(isCoveredTier('preferred_generic'), true)
@@ -100,4 +103,14 @@ test('drug coverage carries tier and the prior-auth / quantity flags', () => {
       quantityLimit: false,
     },
   ])
+})
+
+test('coverage match has three states, so partial is not the same as none', () => {
+  assert.equal(coverageMatch(3, 3), 'match')
+  assert.equal(coverageMatch(1, 3), 'partial')
+  assert.equal(coverageMatch(0, 3), 'none')
+})
+
+test('nothing selected is none, not a vacuous match', () => {
+  assert.equal(coverageMatch(0, 0), 'none')
 })

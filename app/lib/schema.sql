@@ -43,9 +43,14 @@ CREATE TABLE IF NOT EXISTS sps_gravie_modifier (
   effective_year INTEGER,
   multiplier     NUMERIC(9,6) NOT NULL DEFAULT 1.0,
   flat_cents     BIGINT       NOT NULL DEFAULT 0,
+  -- Gravie sets the enrollment type per carrier; Ideon has no such field.
+  enrollment_type TEXT,
   label          TEXT,
   CONSTRAINT sps_gravie_modifier_multiplier_sane CHECK (multiplier > 0 AND multiplier < 10)
 );
 
 CREATE INDEX IF NOT EXISTS sps_gravie_modifier_batch_idx
   ON sps_gravie_modifier (batch_id);
+
+-- Widening sps_gravie_modifier from a premium table to Gravie's per-plan overlay.
+ALTER TABLE sps_gravie_modifier ADD COLUMN IF NOT EXISTS enrollment_type TEXT;

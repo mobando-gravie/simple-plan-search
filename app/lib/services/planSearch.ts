@@ -46,6 +46,8 @@ export type SearchCriteria = {
 export type PricedPlan = MappedPlan & {
   gravieMultiplier: number
   gravieFlatCents: number
+  /** From the Gravie overlay row that matched; Self Enroll when none did. */
+  enrollmentType: string
   finalPremiumCents: number | null
   modifierId: number | null
   modifierLabel: string | null
@@ -100,6 +102,7 @@ function priceWith(modifiers: GravieModifier[], plan: MappedPlan, state: string)
     ...plan,
     gravieMultiplier: effective.multiplier,
     gravieFlatCents: effective.flatCents,
+    enrollmentType: match?.enrollmentType ?? 'SELF_ENROLL',
     finalPremiumCents:
       plan.ideonPremiumCents === null ? null : applyModifier(plan.ideonPremiumCents, effective),
     modifierId: match?.id ?? null,
