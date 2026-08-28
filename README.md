@@ -13,7 +13,7 @@ final_premium_cents = round(ideon_premium_cents × multiplier) + flat_cents
 cp .env.example .env.local   # fill in DATABASE_URL, IDEON_API_KEY, SESSION_SECRET, APP_PASSWORDS
 npm install
 npm run migrate              # creates the sps_* tables
-npm run dev                  # http://localhost:4100
+npm run dev                  # http://localhost:4111
 ```
 
 `npm run migrate` is idempotent — everything is `CREATE TABLE IF NOT EXISTS`, so
@@ -241,7 +241,7 @@ every field. Ideon's decimal dollars are converted once, in `mapPlan`.
 
 | command | what it does |
 |---|---|
-| `npm run dev` | dev server on :4100 |
+| `npm run dev` | dev server on :4111 |
 | `npm run build` | production build |
 | `npm run migrate` | apply `app/lib/schema.sql` |
 | `npm run compare` | diff premiums against ichra-shopping |
