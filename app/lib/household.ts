@@ -50,9 +50,3 @@ export function toApplicants(household: Household): Applicant[] {
     child: m.relation === 'child',
   }))
 }
-
-export const RELATION_LABEL: Record<MemberRelation, string> = {
-  primary: 'Member',
-  spouse: 'Spouse',
-  child: 'Child',
-}
