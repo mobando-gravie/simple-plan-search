@@ -22,6 +22,18 @@ export function formatCentsDelta(cents: number): string {
 }
 
 /**
+ * What the member pays after the ICHRA allowance. Floored at zero — an allowance
+ * larger than the premium is not a refund.
+ */
+export function netPremiumCents(
+  premiumCents: number | null,
+  allowanceCents = 0,
+): number | null {
+  if (premiumCents === null) return null
+  return Math.max(0, premiumCents - allowanceCents)
+}
+
+/**
  * Parses a currency-ish string to cents. Handles "$1,550", "1550", "12.50", "(5.00)".
  * Returns null for anything non-numeric ("Not Covered", "Included in Medical") rather
  * than coercing it to 0 — a $0 deductible is a real and different thing.

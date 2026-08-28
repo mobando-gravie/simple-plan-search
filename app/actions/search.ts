@@ -86,6 +86,11 @@ export async function runSearch(_state: SearchState, formData: FormData): Promis
     zipCode,
     household,
     householdIncome: optionalNumber(formData.get('householdIncome')),
+    // Entered in dollars, stored in cents like every other money value.
+    allowanceCents: (() => {
+      const dollars = optionalNumber(formData.get('allowance'))
+      return dollars === undefined ? undefined : Math.round(dollars * 100)
+    })(),
     enrollmentDate: String(formData.get('enrollmentDate') ?? '').trim() || undefined,
     providers: selectedJson<SelectedProvider>(formData.get('providersJson')),
     drugs: selectedJson<SelectedDrug>(formData.get('drugsJson')),

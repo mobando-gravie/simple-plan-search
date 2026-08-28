@@ -1,6 +1,6 @@
 import type { PricedPlan } from './services/planSearch'
 
-export type SortKey = 'premium' | 'deductible' | 'oopMax' | 'name'
+export type SortKey = 'premium' | 'deductible' | 'oopMax' | 'name' | 'free-floor'
 
 export type PlanFilterState = {
   search: string
@@ -49,9 +49,32 @@ export function allProvidersInNetwork(plan: PricedPlan): boolean {
   return providers.length > 0 && providers.every((p) => p.inNetwork)
 }
 
+/**
+ * "Free floor": the most plan a member can take without paying anything.
+ *
+ * Plans within the allowance come first, richest first — the top of what is free.
+ * Plans over it follow, smallest out-of-pocket first. Two tiers rather than
+ * |premium − allowance| because that would rank a plan costing $10/mo above a
+ * free one $25 cheaper, which is the opposite of the intent.
+ */
+function compareFreeFloor(allowanceCents: number, a: number, b: number): number {
+  const aFree = a <= allowanceCents
+  const bFree = b <= allowanceCents
+  if (aFree !== bFree) return aFree ? -1 : 1
+  return aFree ? b - a : a - b
+}
+
 /** Unpriced plans sort last whichever direction is chosen — they carry no signal. */
-function compareBy(key: SortKey, a: PricedPlan, b: PricedPlan): number {
+function compareBy(key: SortKey, a: PricedPlan, b: PricedPlan, allowanceCents = 0): number {
   if (key === 'name') return a.planName.localeCompare(b.planName)
+  if (key === 'free-floor') {
+    const av = a.finalPremiumCents
+    const bv = b.finalPremiumCents
+    if (av === null && bv === null) return 0
+    if (av === null) return 1
+    if (bv === null) return -1
+    return compareFreeFloor(allowanceCents, av, bv)
+  }
   const pick = (p: PricedPlan) =>
     key === 'premium'
       ? p.finalPremiumCents
@@ -66,7 +89,12 @@ function compareBy(key: SortKey, a: PricedPlan, b: PricedPlan): number {
   return av - bv
 }
 
-export function applyPlanFilters(plans: PricedPlan[], f: PlanFilterState): PricedPlan[] {
+/** The allowance is a search input, not a filter control, so it arrives separately. */
+export function applyPlanFilters(
+  plans: PricedPlan[],
+  f: PlanFilterState,
+  allowanceCents = 0,
+): PricedPlan[] {
   const needle = f.search.trim().toLowerCase()
   const kept = plans.filter((plan) => {
     if (needle) {
@@ -89,5 +117,5 @@ export function applyPlanFilters(plans: PricedPlan[], f: PlanFilterState): Price
     if (f.allProvidersInNetwork && !allProvidersInNetwork(plan)) return false
     return true
   })
-  return kept.sort((a, b) => compareBy(f.sort, a, b))
+  return kept.sort((a, b) => compareBy(f.sort, a, b, allowanceCents))
 }

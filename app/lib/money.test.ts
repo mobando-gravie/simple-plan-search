@@ -1,6 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dollarsToCents, formatCents, formatCentsDelta, parseCurrencyToCents } from './money'
+import {
+  dollarsToCents,
+  formatCents,
+  formatCentsDelta,
+  netPremiumCents,
+  parseCurrencyToCents,
+} from './money'
 
 test('dollarsToCents rounds to the nearest cent', () => {
   assert.equal(dollarsToCents(1564.43), 156443)
@@ -50,4 +56,20 @@ test('formatCentsDelta signs the number so a zero delta is distinguishable', () 
   assert.equal(formatCentsDelta(1234), '+$12.34')
   assert.equal(formatCentsDelta(-1234), '-$12.34')
   assert.equal(formatCentsDelta(0), '$0.00')
+})
+
+test('the net premium subtracts the allowance', () => {
+  assert.equal(netPremiumCents(50000, 40000), 10000)
+  assert.equal(netPremiumCents(50000, 0), 50000)
+  assert.equal(netPremiumCents(50000), 50000)
+})
+
+test('an allowance larger than the premium floors at zero, not a refund', () => {
+  assert.equal(netPremiumCents(30000, 40000), 0)
+  assert.equal(netPremiumCents(40000, 40000), 0)
+})
+
+test('an unpriced premium stays unpriced whatever the allowance', () => {
+  assert.equal(netPremiumCents(null, 40000), null)
+  assert.equal(netPremiumCents(null), null)
 })

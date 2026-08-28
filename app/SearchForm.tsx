@@ -2,7 +2,7 @@
 import { Plus, RotateCw, Search, X } from 'lucide-react'
 import { useActionState, useRef, useState } from 'react'
 import { runSearch, type SearchState } from '@/app/actions/search'
-import { householdSize, type Household } from '@/app/lib/household'
+import type { Household } from '@/app/lib/household'
 import EntitySearch from '@/app/EntitySearch'
 import type { DrugHit, ProviderHit, SelectedDrug, SelectedProvider } from '@/app/lib/ideon/types'
 import PlanResults from '@/app/PlanResults'
@@ -101,7 +101,7 @@ export default function SearchForm() {
         <input type="hidden" name="providersJson" value={JSON.stringify(providers)} />
         <input type="hidden" name="drugsJson" value={JSON.stringify(drugs)} />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field
             label="ZIP code"
             name="zipCode"
@@ -118,6 +118,16 @@ export default function SearchForm() {
             inputMode="numeric"
             hint="optional"
             defaultValue={submitted?.householdIncome ?? ''}
+          />
+          <Field
+            label="ICHRA allowance"
+            name="allowance"
+            placeholder="400"
+            inputMode="numeric"
+            hint="monthly, optional"
+            defaultValue={
+              submitted?.allowanceCents === undefined ? '' : submitted.allowanceCents / 100
+            }
           />
         </div>
 
@@ -315,7 +325,7 @@ export default function SearchForm() {
                 : 'fetched live from Ideon'}
             </span>
           </div>
-          <PlanResults plans={state.plans} householdSize={householdSize(submitted.household)} />
+          <PlanResults plans={state.plans} allowanceCents={submitted.allowanceCents ?? 0} />
         </div>
       )}
     </div>

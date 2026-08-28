@@ -28,6 +28,12 @@ export type SearchCriteria = {
   zipCode: string
   household: Household
   householdIncome?: number
+  /**
+   * Household-total ICHRA allowance, in cents. Display and sort only — Ideon has
+   * no allowance concept, so this is deliberately absent from planSearchBody and
+   * therefore from the cache key.
+   */
+  allowanceCents?: number
   enrollmentDate?: string
   providers: SelectedProvider[]
   drugs: SelectedDrug[]

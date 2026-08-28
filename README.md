@@ -98,6 +98,19 @@ than dropping them; those are filtered out and the count reported.
 Exit code is `0` when every matched plan is within `--tolerance-cents` and neither
 side has orphan plans, `1` otherwise, so it drops into CI unchanged.
 
+## ICHRA allowance
+
+Setting an allowance on the search switches the card to the member's view: the net
+premium (`max(0, premium − allowance)`) with the gross struck through and an
+"after $X benefit" line. It also enables the **free floor** sort, which puts the
+richest plan the member can take at no cost first, then plans costing something,
+cheapest first — deliberately not `|premium − allowance|`, which would rank a plan
+costing $10/mo above a free one $25 cheaper.
+
+The allowance is display and sort only. Ideon has no allowance concept, so it stays
+out of the request body and therefore out of the cache key — adjusting it
+re-renders instantly instead of refetching.
+
 ## Caching
 
 ## Providers and prescriptions
@@ -115,6 +128,19 @@ Two Ideon quirks the code works around, both verified live:
   returns an object, so `ideon/coverage.ts` reads both.
 - A plan's `coverages[]` rows repeat on **every** page of a paged search, so they
   are deduped on `(plan_id, drug_package_id)` before counting.
+
+## ICHRA allowance
+
+Setting an allowance on the search switches the card to the member's view: the net
+premium (`max(0, premium − allowance)`) with the gross struck through and an
+"after $X benefit" line. It also enables the **free floor** sort, which puts the
+richest plan the member can take at no cost first, then plans costing something,
+cheapest first — deliberately not `|premium − allowance|`, which would rank a plan
+costing $10/mo above a free one $25 cheaper.
+
+The allowance is display and sort only. Ideon has no allowance concept, so it stays
+out of the request body and therefore out of the cache key — adjusting it
+re-renders instantly instead of refetching.
 
 ## Caching
 

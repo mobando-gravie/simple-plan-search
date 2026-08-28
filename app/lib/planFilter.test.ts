@@ -155,3 +155,61 @@ test('filter options are the distinct values present, sorted', () => {
     carriers: ['Molina', 'Oscar'],
   })
 })
+
+test('free floor puts the richest plan you can take for nothing first', () => {
+  // Allowance $400. The $398 plan is the most plan available at no cost, so it
+  // outranks cheaper free plans; anything you would pay for comes after all of them.
+  const plans = [
+    plan({ hiosPlanId: 'over-50', finalPremiumCents: 45000 }),
+    plan({ hiosPlanId: 'free-290', finalPremiumCents: 29000 }),
+    plan({ hiosPlanId: 'over-10', finalPremiumCents: 41000 }),
+    plan({ hiosPlanId: 'free-398', finalPremiumCents: 39800 }),
+    plan({ hiosPlanId: 'free-375', finalPremiumCents: 37500 }),
+  ]
+  const out = applyPlanFilters(plans, { ...DEFAULT_FILTERS, sort: 'free-floor' }, 40000)
+  assert.deepEqual(out.map((p) => p.hiosPlanId), [
+    'free-398',
+    'free-375',
+    'free-290',
+    'over-10',
+    'over-50',
+  ])
+})
+
+test('a plan exactly at the allowance is still free and ranks top', () => {
+  const plans = [
+    plan({ hiosPlanId: 'over', finalPremiumCents: 40001 }),
+    plan({ hiosPlanId: 'exact', finalPremiumCents: 40000 }),
+  ]
+  const out = applyPlanFilters(plans, { ...DEFAULT_FILTERS, sort: 'free-floor' }, 40000)
+  assert.deepEqual(out.map((p) => p.hiosPlanId), ['exact', 'over'])
+})
+
+test('free floor never ranks a plan you pay for above a free one', () => {
+  // The trap that |premium - allowance| would fall into: $410 is 10 away and $375
+  // is 25 away, but $410 costs money and $375 does not.
+  const plans = [
+    plan({ hiosPlanId: 'paid-410', finalPremiumCents: 41000 }),
+    plan({ hiosPlanId: 'free-375', finalPremiumCents: 37500 }),
+  ]
+  const out = applyPlanFilters(plans, { ...DEFAULT_FILTERS, sort: 'free-floor' }, 40000)
+  assert.deepEqual(out.map((p) => p.hiosPlanId), ['free-375', 'paid-410'])
+})
+
+test('with no allowance every plan is over it, so free floor is cheapest-first', () => {
+  const plans = [
+    plan({ hiosPlanId: 'b', finalPremiumCents: 90000 }),
+    plan({ hiosPlanId: 'a', finalPremiumCents: 10000 }),
+  ]
+  const out = applyPlanFilters(plans, { ...DEFAULT_FILTERS, sort: 'free-floor' })
+  assert.deepEqual(out.map((p) => p.hiosPlanId), ['a', 'b'])
+})
+
+test('unpriced plans sort last under free floor too', () => {
+  const plans = [
+    plan({ hiosPlanId: 'null', finalPremiumCents: null }),
+    plan({ hiosPlanId: 'priced', finalPremiumCents: 39000 }),
+  ]
+  const out = applyPlanFilters(plans, { ...DEFAULT_FILTERS, sort: 'free-floor' }, 40000)
+  assert.deepEqual(out.map((p) => p.hiosPlanId), ['priced', 'null'])
+})

@@ -7,13 +7,16 @@ import PlanList from '@/app/PlanList'
 
 export default function PlanResults({
   plans,
-  householdSize,
+  allowanceCents = 0,
 }: {
   plans: PricedPlan[]
-  householdSize: number
+  allowanceCents?: number
 }) {
   const [filters, setFilters] = useState<PlanFilterState>(DEFAULT_FILTERS)
-  const visible = useMemo(() => applyPlanFilters(plans, filters), [plans, filters])
+  const visible = useMemo(
+    () => applyPlanFilters(plans, filters, allowanceCents),
+    [plans, filters, allowanceCents],
+  )
 
   const hasProviders = plans.some((p) => p.coverage.providers.length > 0)
   const hasDrugs = plans.some((p) => p.coverage.drugs.length > 0)
@@ -25,10 +28,11 @@ export default function PlanResults({
         filters={filters}
         onChange={setFilters}
         shown={visible.length}
+        allowanceCents={allowanceCents}
         hasProviders={hasProviders}
         hasDrugs={hasDrugs}
       />
-      <PlanList plans={visible} householdSize={householdSize} />
+      <PlanList plans={visible} allowanceCents={allowanceCents} />
     </div>
   )
 }

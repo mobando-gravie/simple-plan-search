@@ -1,6 +1,6 @@
 import { Check, X } from 'lucide-react'
 import Image from 'next/image'
-import { formatCents } from '@/app/lib/money'
+import { formatCents, netPremiumCents } from '@/app/lib/money'
 import { allProvidersInNetwork, coversAllDrugs } from '@/app/lib/planFilter'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
 import { CARD, CHIP } from '@/app/ui/theme'
@@ -17,15 +17,35 @@ const METAL_STYLES: Record<string, string> = {
 
 const STAT_LABEL = 'text-header-h6 uppercase text-brown-gravie-50'
 const STAT_VALUE = 'tnum text-header-h3 text-ink-60'
+const STAT_SUB = 'tnum mt-0.5 text-paragraph-extra-small text-brown-gravie-50 underline'
 
-function Stat({ label, value, suffix }: { label: string; value: string; suffix?: string }) {
+function Stat({
+  label,
+  value,
+  suffix,
+  strikethrough,
+  sub,
+}: {
+  label: string
+  value: string
+  suffix?: string
+  /** The pre-allowance premium, shown struck through beside the net figure. */
+  strikethrough?: string
+  sub?: string
+}) {
   return (
     <div>
       <div className={STAT_LABEL}>{label}</div>
       <div className={STAT_VALUE}>
         {value}
         {suffix && <span className="text-paragraph-extra-small text-brown-gravie-50">{suffix}</span>}
+        {strikethrough && (
+          <span className="ml-2 text-paragraph-small font-bold text-destructive line-through">
+            {strikethrough}
+          </span>
+        )}
       </div>
+      {sub && <div className={STAT_SUB}>{sub}</div>}
     </div>
   )
 }
@@ -44,10 +64,10 @@ function CoverageChip({ ok, label }: { ok: boolean; label: string }) {
 
 export default function PlanList({
   plans,
-  householdSize,
+  allowanceCents = 0,
 }: {
   plans: PricedPlan[]
-  householdSize: number
+  allowanceCents?: number
 }) {
   if (plans.length === 0) {
     return (
@@ -55,8 +75,7 @@ export default function PlanList({
     )
   }
 
-  const family = householdSize > 1
-  const costShare = family ? 'family' : 'individual'
+  const hasAllowance = allowanceCents > 0
 
   return (
     <ul className="space-y-3">
@@ -85,18 +104,40 @@ export default function PlanList({
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <Stat label="Premium" value={formatCents(plan.finalPremiumCents)} suffix="/mo" />
               <Stat
-                label={`Deductible (${costShare})`}
+                label={hasAllowance ? 'Your monthly premium' : 'Premium'}
                 value={formatCents(
-                  family ? plan.deductibleFamilyCents : plan.deductibleIndividualCents,
+                  hasAllowance
+                    ? netPremiumCents(plan.finalPremiumCents, allowanceCents)
+                    : plan.finalPremiumCents,
                 )}
+                suffix="/mo"
+                strikethrough={
+                  hasAllowance && plan.finalPremiumCents !== null
+                    ? formatCents(plan.finalPremiumCents)
+                    : undefined
+                }
+                sub={hasAllowance ? `after ${formatCents(allowanceCents)} benefit` : undefined}
               />
               <Stat
-                label={`Max OOP (${costShare})`}
-                value={formatCents(
-                  family ? plan.outOfPocketMaxFamilyCents : plan.outOfPocketMaxIndividualCents,
-                )}
+                label="Deductible"
+                value={formatCents(plan.deductibleIndividualCents)}
+                suffix=" / person"
+                sub={
+                  plan.deductibleFamilyCents === null
+                    ? undefined
+                    : `${formatCents(plan.deductibleFamilyCents)} / household`
+                }
+              />
+              <Stat
+                label="Max OOP"
+                value={formatCents(plan.outOfPocketMaxIndividualCents)}
+                suffix=" / person"
+                sub={
+                  plan.outOfPocketMaxFamilyCents === null
+                    ? undefined
+                    : `${formatCents(plan.outOfPocketMaxFamilyCents)} / household`
+                }
               />
             </div>
 

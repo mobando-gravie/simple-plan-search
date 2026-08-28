@@ -7,10 +7,11 @@ import {
   type SortKey,
 } from '@/app/lib/planFilter'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
-import { BTN_TEXT, CHECKBOX, FIELD, LABEL } from '@/app/ui/theme'
+import { BTN_TEXT, CHECKBOX, FIELD, HINT, LABEL } from '@/app/ui/theme'
 
 const SORTS: { value: SortKey; label: string }[] = [
   { value: 'premium', label: 'Premium' },
+  { value: 'free-floor', label: 'Free floor' },
   { value: 'deductible', label: 'Deductible' },
   { value: 'oopMax', label: 'Max OOP' },
   { value: 'name', label: 'Plan name' },
@@ -57,6 +58,7 @@ export default function PlanFilters({
   filters,
   onChange,
   shown,
+  allowanceCents,
   hasProviders,
   hasDrugs,
 }: {
@@ -64,6 +66,7 @@ export default function PlanFilters({
   filters: PlanFilterState
   onChange: (next: PlanFilterState) => void
   shown: number
+  allowanceCents: number
   hasProviders: boolean
   hasDrugs: boolean
 }) {
@@ -125,11 +128,22 @@ export default function PlanFilters({
             className={FIELD}
           >
             {SORTS.map((s) => (
-              <option key={s.value} value={s.value}>
+              <option
+                key={s.value}
+                value={s.value}
+                // Free floor ranks against the allowance; without one it has nothing to rank by.
+                disabled={s.value === 'free-floor' && allowanceCents === 0}
+              >
                 {s.label}
+                {s.value === 'free-floor' && allowanceCents === 0
+                  ? ' — needs an allowance'
+                  : ''}
               </option>
             ))}
           </select>
+          {filters.sort === 'free-floor' && (
+            <span className={HINT}>Best plan you can take at no cost, first.</span>
+          )}
         </label>
       </div>
 
