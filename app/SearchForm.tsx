@@ -1,11 +1,19 @@
 'use client'
 import { ChevronDown, ChevronUp, Plus, RotateCw, Search, X } from 'lucide-react'
-import { useActionState, useRef, useState } from 'react'
-import { runSearch, type SearchState } from '@/app/actions/search'
+import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
+import { refreshSearch } from '@/app/actions/search'
 import { formatCents } from '@/app/lib/money'
 import type { Household } from '@/app/lib/household'
 import EntitySearch from '@/app/EntitySearch'
 import type { DrugHit, ProviderHit, SelectedDrug, SelectedProvider } from '@/app/lib/ideon/types'
+import type { PlanFilterState } from '@/app/lib/planFilter'
+import {
+  DEFAULT_CRITERIA,
+  type SearchCriteria,
+  type SearchResult,
+} from '@/app/lib/services/planSearch'
+import { encodeCriteria } from '@/app/lib/urlState'
 import PlanResults from '@/app/PlanResults'
 import {
   BANNER_ERROR,
@@ -45,11 +53,6 @@ function Field({
   )
 }
 
-/**
- * Uncontrolled on purpose. React resets the form once the action resolves, which
- * restores a checkbox from its defaultChecked attribute — and does not afterwards
- * re-sync a controlled `checked`, so a controlled box appears to clear itself.
- */
 function TobaccoCheckbox({ name, defaultChecked }: { name: string; defaultChecked: boolean }) {
   return (
     <label className="flex items-center gap-2 whitespace-nowrap text-paragraph-small text-ink-50">
@@ -61,76 +64,123 @@ function TobaccoCheckbox({ name, defaultChecked }: { name: string; defaultChecke
 
 type ChildRow = { id: number; age: string }
 
-export default function SearchForm() {
-  const [state, action, pending] = useActionState<SearchState, FormData>(runSearch, {})
-  const formRef = useRef<HTMLFormElement>(null)
-  const refreshRef = useRef<HTMLInputElement>(null)
+function num(form: FormData, name: string): number | undefined {
+  const raw = String(form.get(name) ?? '').trim()
+  if (raw === '') return undefined
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : undefined
+}
 
-  // React resets a form once its action resolves, restoring every field to its
-  // defaultValue — so the defaults have to echo what was just submitted, or the
-  // criteria vanish and Refresh can no longer resubmit them.
-  const submitted = state?.criteria
-  const household = submitted?.household
+export default function SearchForm({
+  criteria,
+  filters,
+  openPlanId,
+  result,
+  error,
+}: {
+  criteria: SearchCriteria | null
+  filters: PlanFilterState
+  openPlanId: string | null
+  result: SearchResult | null
+  error: string | null
+}) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
-  // Collapse once a search returns, so the results start at the top of the page.
-  // Keyed on the returned criteria object: a new result collapses again, and the
-  // user's own expand survives re-renders in between.
-  const [collapsed, setCollapsed] = useState(false)
-  const [collapsedFor, setCollapsedFor] = useState<typeof submitted>(undefined)
-  if (submitted && submitted !== collapsedFor) {
-    setCollapsedFor(submitted)
-    setCollapsed(true)
-  }
+  // Identity for the criteria the URL currently describes. The object reference
+  // changes on every render; its encoded form only changes when the search does.
+  const criteriaKey = criteria ? encodeCriteria(criteria).toString() : ''
 
-  // Spouse and children are rows, not just values, so the post-action reset cannot
-  // restore them. Holding them as controlled state sidesteps the reset entirely and
-  // lets a returned household re-seed them (the sanctioned adjust-state-on-new-prop
-  // pattern — an effect here would only cause a second render).
+  // Rows and chips cannot be expressed as form defaults, so they are state seeded
+  // from the URL — the sanctioned adjust-state-on-new-prop pattern, since an effect
+  // here would only add a second render.
+  const [seededFrom, setSeededFrom] = useState<string | null>(null)
   const [spouse, setSpouse] = useState<{ age: string } | null>(null)
   const [children, setChildren] = useState<ChildRow[]>([])
-  const [seededFrom, setSeededFrom] = useState<Household | null>(null)
   const [providers, setProviders] = useState<SelectedProvider[]>([])
   const [drugs, setDrugs] = useState<SelectedDrug[]>([])
   const [zip, setZip] = useState('')
+  // Collapse once a search returns, so the results start at the top of the page.
+  const [collapsed, setCollapsed] = useState(criteria !== null)
 
-  if (household && household !== seededFrom) {
-    setSeededFrom(household)
-    setSpouse(household.spouse ? { age: String(household.spouse.age) } : null)
-    setChildren(household.children.map((child, i) => ({ id: i + 1, age: String(child.age) })))
+  if (criteriaKey !== seededFrom) {
+    setSeededFrom(criteriaKey)
+    const household: Household | undefined = criteria?.household
+    setSpouse(household?.spouse ? { age: String(household.spouse.age) } : null)
+    setChildren(
+      (household?.children ?? []).map((child, i) => ({ id: i + 1, age: String(child.age) })),
+    )
+    setProviders(criteria?.providers ?? [])
+    setDrugs(criteria?.drugs ?? [])
+    setZip(criteria?.zipCode ?? '')
+    setCollapsed(criteria !== null)
   }
 
-  const summary = submitted
+  const summary = criteria
     ? [
-        submitted.zipCode,
-        `member ${submitted.household.member.age}`,
-        submitted.household.spouse ? `spouse ${submitted.household.spouse.age}` : null,
-        submitted.household.children.length > 0
-          ? `${submitted.household.children.length} ${submitted.household.children.length === 1 ? 'child' : 'children'}`
+        criteria.zipCode,
+        `member ${criteria.household.member.age}`,
+        criteria.household.spouse ? `spouse ${criteria.household.spouse.age}` : null,
+        criteria.household.children.length > 0
+          ? `${criteria.household.children.length} ${criteria.household.children.length === 1 ? 'child' : 'children'}`
           : null,
-        submitted.allowanceCents ? `${formatCents(submitted.allowanceCents)} allowance` : null,
-        submitted.providers.length > 0 ? `${submitted.providers.length} providers` : null,
-        submitted.drugs.length > 0 ? `${submitted.drugs.length} drugs` : null,
+        criteria.allowanceCents ? `${formatCents(criteria.allowanceCents)} allowance` : null,
+        criteria.providers.length > 0 ? `${criteria.providers.length} providers` : null,
+        criteria.drugs.length > 0 ? `${criteria.drugs.length} drugs` : null,
       ]
         .filter(Boolean)
         .join(' · ')
     : ''
 
-  function refresh() {
-    if (!refreshRef.current || !formRef.current) return
-    refreshRef.current.value = 'true'
-    formRef.current.requestSubmit()
+  /** A new search drops the previous filters — its carriers may not exist in the new set. */
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const memberAge = num(form, 'memberAge')
+    if (memberAge === undefined) return
+    const spouseAge = num(form, 'spouseAge')
+    const allowanceDollars = num(form, 'allowance')
+
+    const next: SearchCriteria = {
+      ...DEFAULT_CRITERIA,
+      zipCode: String(form.get('zipCode') ?? '').trim(),
+      household: {
+        member: { age: memberAge, tobacco: form.get('memberTobacco') === 'on' },
+        spouse:
+          spouseAge === undefined
+            ? null
+            : { age: spouseAge, tobacco: form.get('spouseTobacco') === 'on' },
+        children: form
+          .getAll('childAge')
+          .map((raw) => Number(String(raw)))
+          .filter((age) => Number.isFinite(age))
+          .map((age) => ({ age })),
+      },
+      householdIncome: num(form, 'householdIncome'),
+      allowanceCents:
+        allowanceDollars === undefined ? undefined : Math.round(allowanceDollars * 100),
+      providers,
+      drugs,
+    }
+    router.push(`/?${encodeCriteria(next)}`)
   }
+
+  function refresh() {
+    setRefreshError(null)
+    startTransition(async () => {
+      const { error: failed } = await refreshSearch(window.location.search)
+      if (failed) setRefreshError(failed)
+      else router.refresh()
+    })
+  }
+
+  const banner = error ?? refreshError
 
   return (
     <div className="space-y-8">
-      <form
-        ref={formRef}
-        action={action}
-        className={`${PANEL} ${collapsed ? 'py-4' : 'space-y-6'}`}
-      >
-        <input ref={refreshRef} type="hidden" name="refresh" value="false" />
-
-        {submitted && (
+      <form onSubmit={submit} className={`${PANEL} ${collapsed ? 'py-4' : 'space-y-6'}`}>
+        {criteria && (
           <button
             type="button"
             onClick={() => setCollapsed((c) => !c)}
@@ -149,37 +199,41 @@ export default function SearchForm() {
         )}
 
         {/* `hidden` rather than unmounting: the inputs must stay in the form or a
-            collapsed Refresh would submit an empty household. */}
+            collapsed submit would send an empty household. */}
         <div hidden={collapsed} className="space-y-6">
-        <input type="hidden" name="providersJson" value={JSON.stringify(providers)} />
-        <input type="hidden" name="drugsJson" value={JSON.stringify(drugs)} />
-
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {/* Keyed on the URL's criteria so a Back navigation re-seeds the field
+              rather than leaving the previous typing in place. */}
           <Field
+            key={`zip-${criteriaKey}`}
             label="ZIP code"
             name="zipCode"
             placeholder="11201"
             inputMode="numeric"
+            pattern="\d{5}"
+            title="Five digits"
             required
-            defaultValue={submitted?.zipCode ?? ''}
+            defaultValue={criteria?.zipCode ?? ''}
             onChange={(e) => setZip(e.target.value)}
           />
           <Field
+            key={`income-${criteriaKey}`}
             label="Household income"
             name="householdIncome"
             placeholder="80000"
             inputMode="numeric"
             hint="optional"
-            defaultValue={submitted?.householdIncome ?? ''}
+            defaultValue={criteria?.householdIncome ?? ''}
           />
           <Field
+            key={`allowance-${criteriaKey}`}
             label="ICHRA allowance"
             name="allowance"
             placeholder="400"
             inputMode="numeric"
             hint="monthly, optional"
             defaultValue={
-              submitted?.allowanceCents === undefined ? '' : submitted.allowanceCents / 100
+              criteria?.allowanceCents === undefined ? '' : criteria.allowanceCents / 100
             }
           />
         </div>
@@ -189,17 +243,19 @@ export default function SearchForm() {
             <label className="block">
               <span className={LABEL}>Member age</span>
               <input
+                key={`member-${criteriaKey}`}
                 name="memberAge"
                 inputMode="numeric"
                 required
                 className={AGE_FIELD}
-                defaultValue={household?.member.age ?? 35}
+                defaultValue={criteria?.household.member.age ?? 35}
               />
             </label>
             <div className="mt-3">
               <TobaccoCheckbox
+                key={`member-tobacco-${criteriaKey}`}
                 name="memberTobacco"
-                defaultChecked={household?.member.tobacco ?? false}
+                defaultChecked={criteria?.household.member.tobacco ?? false}
               />
             </div>
           </div>
@@ -229,8 +285,9 @@ export default function SearchForm() {
               </div>
               <div className="mt-3">
                 <TobaccoCheckbox
+                  key={`spouse-tobacco-${criteriaKey}`}
                   name="spouseTobacco"
-                  defaultChecked={household?.spouse?.tobacco ?? false}
+                  defaultChecked={criteria?.household.spouse?.tobacco ?? false}
                 />
               </div>
             </div>
@@ -343,16 +400,16 @@ export default function SearchForm() {
         </div>
 
         <div className="flex justify-end gap-2 border-t border-brown-gravie-20 pt-5">
-          <button type="button" onClick={refresh} disabled={pending} className={BTN_OUTLINE}>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={pending || !criteria}
+            className={BTN_OUTLINE}
+          >
             <RotateCw />
             Refresh from Ideon
           </button>
-          <button
-            type="submit"
-            disabled={pending}
-            onClick={() => refreshRef.current && (refreshRef.current.value = 'false')}
-            className={`${BTN_SOLID} px-6`}
-          >
+          <button type="submit" disabled={pending} className={`${BTN_SOLID} px-6`}>
             <Search />
             {pending ? 'Searching…' : 'Search'}
           </button>
@@ -360,29 +417,34 @@ export default function SearchForm() {
         </div>
       </form>
 
-      {state?.error && <p className={BANNER_ERROR}>{state.error}</p>}
+      {banner && <p className={BANNER_ERROR}>{banner}</p>}
 
-      {state?.plans && state.meta && state.cache && submitted && (
+      {result && criteria && (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-paragraph-small text-brown-gravie-50">
             <span>
-              <strong className="font-bold text-ink-60">{state.meta.total}</strong> plans in{' '}
-              {state.meta.countyName ?? state.meta.fipsCode}, {state.meta.state}
+              <strong className="font-bold text-ink-60">{result.meta.total}</strong> plans in{' '}
+              {result.meta.countyName ?? result.meta.fipsCode}, {result.meta.state}
             </span>
             <span>
-              <strong className="font-bold text-ink-60">{state.meta.modifiersApplied}</strong> of{' '}
-              {state.plans.length} carry a Gravie modifier
+              <strong className="font-bold text-ink-60">{result.meta.modifiersApplied}</strong> of{' '}
+              {result.plans.length} carry a Gravie modifier
             </span>
             <span>
-              {state.cache.hit
-                ? `cached ${Math.round(state.cache.ageSeconds / 60)} min ago`
+              {result.cache.hit
+                ? `cached ${Math.round(result.cache.ageSeconds / 60)} min ago`
                 : 'fetched live from Ideon'}
             </span>
           </div>
+          {/* Remounted per search so the filters re-seed from the URL rather than
+              carrying over a selection the new result set may not contain. */}
           <PlanResults
-            plans={state.plans}
-            allowanceCents={submitted.allowanceCents ?? 0}
-            drugs={submitted.drugs}
+            key={criteriaKey}
+            plans={result.plans}
+            filters={filters}
+            openPlanId={openPlanId}
+            allowanceCents={criteria.allowanceCents ?? 0}
+            drugs={criteria.drugs}
           />
         </div>
       )}

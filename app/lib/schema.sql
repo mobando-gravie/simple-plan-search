@@ -54,3 +54,13 @@ CREATE INDEX IF NOT EXISTS sps_gravie_modifier_batch_idx
 
 -- Widening sps_gravie_modifier from a premium table to Gravie's per-plan overlay.
 ALTER TABLE sps_gravie_modifier ADD COLUMN IF NOT EXISTS enrollment_type TEXT;
+
+-- Display-only names for ids that travel in a shared URL. A miss is cosmetic:
+-- the NPI and NDC are load-bearing and live in the URL itself.
+CREATE TABLE IF NOT EXISTS sps_entity_label (
+  kind      TEXT        NOT NULL,   -- 'drug' | 'provider'
+  entity_id TEXT        NOT NULL,   -- med_id or NPI, as text
+  label     TEXT        NOT NULL,
+  seen_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (kind, entity_id)
+);

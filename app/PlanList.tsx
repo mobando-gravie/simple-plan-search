@@ -1,7 +1,6 @@
 'use client'
 import { FileText } from 'lucide-react'
 import Image from 'next/image'
-import { useState } from 'react'
 import { coverageMatch, type CoverageMatch } from '@/app/lib/ideon/coverage'
 import type { SelectedDrug } from '@/app/lib/ideon/types'
 import { formatCents, netPremiumCents } from '@/app/lib/money'
@@ -87,20 +86,37 @@ function Stat({
 
 export default function PlanList({
   plans,
+  allPlans,
+  openPlanId,
+  onOpenPlan,
   allowanceCents = 0,
   drugs = [],
 }: {
   plans: PricedPlan[]
+  /** Unfiltered, so a shared link to a plan opens even when the filters would hide it. */
+  allPlans: PricedPlan[]
+  openPlanId: string | null
+  onOpenPlan: (hiosPlanId: string | null) => void
   allowanceCents?: number
   drugs?: SelectedDrug[]
 }) {
-  const [openPlan, setOpenPlan] = useState<PricedPlan | null>(null)
-
-  if (plans.length === 0) {
-    return <p className="text-paragraph-small text-brown-gravie-50">No plans match these filters.</p>
-  }
+  const openPlan = allPlans.find((p) => p.hiosPlanId === openPlanId) ?? null
 
   const hasAllowance = allowanceCents > 0
+  // Rendered in both branches: a shared link can name a plan the filters it carries
+  // would otherwise hide.
+  const modal = openPlan && (
+    <PlanDetailsModal plan={openPlan} drugs={drugs} onClose={() => onOpenPlan(null)} />
+  )
+
+  if (plans.length === 0) {
+    return (
+      <>
+        <p className="text-paragraph-small text-brown-gravie-50">No plans match these filters.</p>
+        {modal}
+      </>
+    )
+  }
 
   return (
     <>
@@ -256,7 +272,7 @@ export default function PlanList({
                   )}
                   <button
                     type="button"
-                    onClick={() => setOpenPlan(plan)}
+                    onClick={() => onOpenPlan(plan.hiosPlanId)}
                     className="rounded-xs border border-marketplace-orange-50 bg-white px-4 py-1.5 text-sm font-bold text-marketplace-orange-60 transition-colors hover:bg-marketplace-orange-10"
                   >
                     Details
@@ -271,9 +287,7 @@ export default function PlanList({
         })}
       </ul>
 
-      {openPlan && (
-        <PlanDetailsModal plan={openPlan} drugs={drugs} onClose={() => setOpenPlan(null)} />
-      )}
+      {modal}
     </>
   )
 }

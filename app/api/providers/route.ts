@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { searchProviders } from '@/app/lib/ideon/client'
+import { lookupProviders } from '@/app/lib/services/entityLookup'
 
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams
@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   // Provider search is geographic; without a zip there is nothing to search around.
   if (term.length < 3 || !/^\d{5}$/.test(zip)) return NextResponse.json({ hits: [] })
   try {
-    return NextResponse.json({ hits: await searchProviders(zip, term) })
+    return NextResponse.json({ hits: await lookupProviders(zip, term) })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'provider search failed'
     return NextResponse.json({ hits: [], error: message }, { status: 502 })

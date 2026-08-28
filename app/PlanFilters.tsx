@@ -1,11 +1,7 @@
 'use client'
 import { X } from 'lucide-react'
-import {
-  DEFAULT_FILTERS,
-  filterOptions,
-  type PlanFilterState,
-  type SortKey,
-} from '@/app/lib/planFilter'
+import { DEFAULT_FILTERS, filterOptions, type PlanFilterState, type SortKey } from '@/app/lib/planFilter'
+import { isDefaultFilters } from '@/app/lib/urlState'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
 import { BTN_TEXT, CARD, CHECKBOX, FIELD, HINT, LABEL } from '@/app/ui/theme'
 
@@ -88,7 +84,7 @@ export default function PlanFilters({
     return raw.trim() === '' || !Number.isFinite(n) ? null : Math.round(n * 100)
   }
   const centsToDollars = (cents: number | null) => (cents === null ? '' : String(cents / 100))
-  const isDefault = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS)
+  const isDefault = isDefaultFilters(filters)
 
   return (
     <div className={`space-y-4 p-4 ${CARD}`}>
@@ -161,7 +157,7 @@ export default function PlanFilters({
           />
         </div>
         <div>
-          <span className={LABEL}>Plan type</span>
+          <span className={LABEL}>Network type</span>
           <ChipToggles
             values={options.planTypes}
             selected={filters.planTypes}

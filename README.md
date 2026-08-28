@@ -104,35 +104,65 @@ than dropping them; those are filtered out and the count reported.
 Exit code is `0` when every matched plan is within `--tolerance-cents` and neither
 side has orphan plans, `1` otherwise, so it drops into CI unchanged.
 
-## Plan cards
+## Shareable URLs
 
-Each card follows the member-facing ICHRA card: a header strip with the carrier
-logo, plan name and a pre-tax note, then a tag stack (enrollment, tax treatment,
-metal, plan type, HSA, and provider/prescription coverage counts), three money
-columns, and links out to the plan documents.
+Every search, filter and open plan lives in the query string, so a link reproduces
+exactly what you are looking at. `app/page.tsx` decodes the parameters, runs the
+search server-side and renders the results — pasting a link needs no client
+round-trip.
 
-Coverage tags have three states — all covered, partial, none — mirroring
-member-client's `coverage-match-class`, so "1 of 3 covered" no longer looks
-identical to "0 of 3".
+The scheme is short because **anything at its default is absent**, not because the
+keys are terse. A one-person search is two parameters:
 
-**Details** opens a modal with the plan's Documents, Care Services, your
-prescriptions and their tiers, Prescription Coverage and Additional Coverages,
-each split In Network / Out of Network. Every external link opens in a new tab.
+```
+/?z=11201&a=40
+```
 
-## ICHRA allowance
+A loaded one, with a deep link to a plan's Details modal:
 
-Setting an allowance on the search switches the card to the member's view: the net
-premium (`max(0, premium − allowance)`) with the gross struck through and an
-"after $X benefit" line. It also enables the **free floor** sort, which puts the
-richest plan the member can take at no cost first, then plans costing something,
-cheapest first — deliberately not `|premium − allowance|`, which would rank a plan
-costing $10/mo above a free one $25 cheaper.
+```
+/?z=75201&a=40t.38&k=10.8&i=80000&w=400&f=s.g&mp=800&o=ff&v=25303NY0630001
+```
 
-The allowance is display and sort only. Ideon has no allowance concept, so it stays
-out of the request body and therefore out of the cache key — adjusting it
-re-renders instantly instead of refetching.
+| key | meaning | shape |
+|---|---|---|
+| `z` | ZIP | `11201` |
+| `a` | adult ages, member first, `t` suffix for tobacco | `40t.38` |
+| `k` | children ages | `10.8` |
+| `i` | household income, dollars | `80000` |
+| `w` | ICHRA allowance, dollars | `400` |
+| `d` | enrollment date, omitted at the first of next month | `2027-03-01` |
+| `p` | provider NPIs | `1164996864` |
+| `x` | drugs, `medId_ndc` | `158585_42385-0943-01` |
+| `q` | filter text | free text |
+| `f` | metal levels | `b eb s g p c` |
+| `t` | network types | `hmo.ppo` |
+| `r` | carriers, repeated once per carrier | `r=Oscar&r=Ambetter` |
+| `mp` / `md` | max premium / deductible, dollars | `800` |
+| `hsa` / `cd` / `pn` | HSA only / covers all drugs / all providers in network | `1` |
+| `o` | sort | `pa pd da dd oa od nm ff` |
+| `v` | HIOS id of the open plan | `25303NY0630001` |
 
-## Caching
+`URLSearchParams` escapes anything outside `[A-Za-z0-9*-._]`, so a comma would
+cost three characters — lists separate on `.` and fields inside a list item on `_`.
+Carriers are the exception: their names contain dots, so they repeat the parameter
+instead.
+
+Provider and drug **names** never travel in the URL. Ideon has no lookup by NPI or
+`med_id`, so each typeahead search records what it saw in `sps_entity_label` and a
+shared link resolves the labels from there. A cache miss is cosmetic — the chip
+falls back to the raw id, and the NPI and NDC that actually drive the search are in
+the URL itself.
+
+Submitting a search is a real navigation (`router.push`) and resets the filters —
+carriers from the previous result set may not exist in the new one. Filter changes
+and opening a plan go through `history.replaceState`, which updates the address bar
+without re-running the server component. The trade is that Back does not undo a
+filter toggle; under `push`, typing in the filter search box would bury the previous
+search under a dozen history entries.
+
+`refresh` is deliberately **not** a parameter. Busting the shared Ideon cache is a
+side effect nobody clicking a link asked for, so it stays an explicit button.
 
 ## Providers and prescriptions
 
@@ -199,6 +229,7 @@ app/lib/services/           orchestration
 app/lib/repos/              every SQL statement
 app/lib/ideon/              Ideon HTTP client + response mapper
 app/lib/shopping/           reads ichra-shopping's FetchPlansResponse
+app/lib/urlState.ts         the query-string codec — decode on load, encode on change
 app/lib/{money,modifier,modifierCsv}.ts   pure domain, unit tested
 scripts/                    migrate, seed, compare
 ```
