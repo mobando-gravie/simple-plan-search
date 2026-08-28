@@ -11,12 +11,12 @@ export const TEXT = {
   body: 'text-ink-50',
   muted: 'text-brown-gravie-50',
   faint: 'text-brown-gravie-30',
-  accent: 'text-marketplace-orange-60',
-  accentStrong: 'text-marketplace-orange-70',
+  accent: 'text-brand-60',
+  accentStrong: 'text-brand-70',
   /** The label on a filled CTA — the brand tint, not white. */
-  onAccent: 'text-marketplace-orange-10',
+  onAccent: 'text-brand-10',
   onInverse: 'text-ink-15',
-  positive: 'text-secondary-green-70',
+  positive: 'text-success-70',
   danger: 'text-destructive',
 } as const
 
@@ -26,11 +26,11 @@ export const BG = {
   sunken: 'bg-brown-gravie-10',
   neutral: 'bg-ink-10',
   inverse: 'bg-ink-60',
-  accent: 'bg-marketplace-orange-60',
-  accentStrong: 'bg-marketplace-orange-70',
-  accentSoft: 'bg-marketplace-orange-20',
-  accentHover: 'bg-marketplace-orange-10',
-  positive: 'bg-secondary-green-10',
+  accent: 'bg-brand-60',
+  accentStrong: 'bg-brand-70',
+  accentSoft: 'bg-brand-20',
+  accentHover: 'bg-brand-10',
+  positive: 'bg-success-10',
   danger: 'bg-destructive/5',
 } as const
 
@@ -38,10 +38,10 @@ export const BORDER = {
   subtle: 'border-brown-gravie-20',
   neutral: 'border-ink-15',
   input: 'border-ink-30',
-  accent: 'border-marketplace-orange-50',
-  accentSoft: 'border-marketplace-orange-30',
-  positive: 'border-secondary-green-60',
-  positiveSoft: 'border-secondary-green-60/30',
+  accent: 'border-brand-50',
+  accentSoft: 'border-brand-30',
+  positive: 'border-success-60',
+  positiveSoft: 'border-success-60/30',
   danger: 'border-destructive/40',
   dangerSoft: 'border-destructive/30',
 } as const
@@ -51,9 +51,9 @@ export const BORDER = {
  * the scanner reads source text, so an interpolated prefix names a class it never emits.
  */
 export const HOVER = {
-  accent: 'hover:text-marketplace-orange-70',
-  accentSurface: 'hover:bg-marketplace-orange-10',
-  accentStrongSurface: 'hover:bg-marketplace-orange-70',
+  accent: 'hover:text-brand-70',
+  accentSurface: 'hover:bg-brand-10',
+  accentStrongSurface: 'hover:bg-brand-70',
   danger: 'hover:text-destructive',
   muted: 'hover:text-brown-gravie-50',
 } as const

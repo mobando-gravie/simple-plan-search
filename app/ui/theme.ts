@@ -11,7 +11,7 @@ const BTN_BASE =
   `text-sm font-bold transition-colors ${FOCUS_RING} ` +
   'disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0'
 
-/** Filled CTA. The label is the marketplace-orange-10 tint rather than plain white. */
+/** Filled CTA. The label is the brand-10 tint rather than plain white. */
 export const BTN_SOLID = `${BTN_BASE} h-10 border border-transparent ${BG.accent} ${TEXT.onAccent} ${HOVER.accentStrongSurface}`
 
 export const BTN_OUTLINE = `${BTN_BASE} h-10 border ${BORDER.accent} ${BG.surface} ${TEXT.accent} ${HOVER.accentSurface}`
@@ -27,9 +27,9 @@ export const BTN_TEXT_DESTRUCTIVE = `${BTN_BASE} border border-transparent bg-tr
 
 /** The outline button's palette on a file input's own button, so the two cannot drift. */
 export const FILE_BUTTON =
-  'file:mr-3 file:rounded-xs file:border file:border-marketplace-orange-50 file:bg-white ' +
-  'file:px-3 file:py-[6px] file:text-sm file:font-bold file:text-marketplace-orange-60 ' +
-  'hover:file:bg-marketplace-orange-10'
+  'file:mr-3 file:rounded-xs file:border file:border-brand-50 file:bg-white ' +
+  'file:px-3 file:py-[6px] file:text-sm file:font-bold file:text-brand-60 ' +
+  'hover:file:bg-brand-10'
 
 /** 16px on mobile is what stops iOS zooming on focus; 14px from md up. */
 const FIELD_BASE =
@@ -47,7 +47,7 @@ export const LABEL = `mb-1.5 block text-paragraph-small font-bold ${TEXT.body}`
 
 export const HINT = `mt-1 block text-paragraph-extra-small ${TEXT.muted}`
 
-export const CHECKBOX = `h-4 w-4 rounded-xs ${BORDER.input} accent-marketplace-orange-60`
+export const CHECKBOX = `h-4 w-4 rounded-xs ${BORDER.input} accent-brand-60`
 
 /** The two muted caption sizes — by far the most repeated pair in the app. */
 export const MUTED = `text-paragraph-small ${TEXT.muted}`

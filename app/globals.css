@@ -9,14 +9,19 @@
  * Its `neutral-*` brand ramp is renamed `ink-*` here: Tailwind v4 ships a stock
  * neutral-50..950, so the brand names would silently shadow it and `bg-neutral-30`
  * (brand) vs `bg-neutral-300` (stock) would differ by one character with no error.
+ *
+ * The accent has deliberately diverged: member-frontend is orange, this app is teal.
+ * Not drift — do not port the orange back.
  */
 @theme {
-  --color-marketplace-orange-70: #9f4704;
-  --color-marketplace-orange-60: #b45004;
-  --color-marketplace-orange-50: #e76908;
-  --color-marketplace-orange-30: #ffb780;
-  --color-marketplace-orange-20: #ffeee0;
-  --color-marketplace-orange-10: #fff6f0;
+  /* Accent. Solved for contrast, not lightness — teal is far brighter than the
+     orange it replaces at equal L, so the dark end had to come down to hold AA. */
+  --color-brand-70: #067167; /* pressed / hover text  5.51:1 on brand-20 */
+  --color-brand-60: #078376; /* primary text and fill 4.65:1 on white    */
+  --color-brand-50: #0ba798; /* visible border        3.00:1 on white    */
+  --color-brand-30: #13e4cf; /* soft chip border      1.51:1 on brand-20 */
+  --color-brand-20: #e2fdfa; /* chip / selected fill                     */
+  --color-brand-10: #f1fefd; /* hover surface, label on a filled button  */
 
   --color-brown-gravie-5: #f9f8f5;
   --color-brown-gravie-10: #f4f0ec;
@@ -31,9 +36,11 @@
   --color-ink-15: #d7e2ea;
   --color-ink-10: #f2f5f8;
 
-  --color-secondary-green-70: #097b5f;
-  --color-secondary-green-60: #0cac81;
-  --color-secondary-green-10: #e8fdf8;
+  /* Positive. Moved off 165° to 145° to stay distinct from the teal accent —
+     these are the in-network and covered signals, not decoration. */
+  --color-success-70: #09843c; /* 4.80:1 on white, 4.51:1 on success-10 */
+  --color-success-60: #0cab4e; /* chip border                           */
+  --color-success-10: #e8fdf1; /* chip fill                             */
   --color-destructive: #ef4444;
 
   --shadow-elevation-1:

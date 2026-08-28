@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className={`${CONTAINER} flex min-h-16 items-center py-3 sm:py-0`}>
             <Link
               href="/"
-              className="whitespace-nowrap text-header-h4 text-marketplace-orange-60 sm:text-header-h3"
+              className="whitespace-nowrap text-header-h4 text-brand-60 sm:text-header-h3"
             >
               Simple Plan Search
             </Link>
