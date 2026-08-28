@@ -1,6 +1,8 @@
 'use client'
+import { Check, Minus } from 'lucide-react'
 import { useId } from 'react'
-import { TEXT } from './colors'
+import type { CoverageFilter } from '@/app/lib/planFilter'
+import { BG, BORDER, TEXT } from './colors'
 import { cx } from './cx'
 import { CHECKBOX, FIELD, fieldClass, HINT, LABEL } from './theme'
 
@@ -65,6 +67,50 @@ export function Select({
 }
 
 /** Checkbox and its text on one line — the label wraps the input, so no htmlFor. */
+const CYCLE = [null, 'partial', 'match'] as const
+const ARIA_CHECKED = { partial: 'mixed', match: true } as const
+
+/**
+ * A checkbox with a third state: off, at least one, all. Hand-drawn rather than a
+ * native input because `indeterminate` is a DOM property with no attribute, so the
+ * middle state cannot be expressed declaratively — hence role + aria-checked="mixed".
+ */
+export function TriStateCheckbox({
+  value,
+  onChange,
+  label,
+}: {
+  value: CoverageFilter
+  onChange: (next: CoverageFilter) => void
+  label: string
+}) {
+  const on = value !== null
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={value === null ? false : ARIA_CHECKED[value]}
+      onClick={() => onChange(CYCLE[(CYCLE.indexOf(value) + 1) % CYCLE.length])}
+      className={cx(
+        'flex items-center gap-2 whitespace-nowrap text-paragraph-small',
+        TEXT.body,
+      )}
+    >
+      <span
+        className={cx(
+          'inline-flex h-4 w-4 items-center justify-center rounded-xs border transition-colors',
+          '[&_svg]:size-3',
+          on ? `${BORDER.accent} ${BG.accent} ${TEXT.onAccent}` : `${BORDER.input} ${BG.surface}`,
+        )}
+      >
+        {value === 'match' && <Check />}
+        {value === 'partial' && <Minus />}
+      </span>
+      {label}
+    </button>
+  )
+}
+
 export function CheckboxRow({
   label,
   className,

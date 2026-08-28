@@ -6,9 +6,9 @@ import { DEFAULT_FILTERS, filterOptions, type PlanFilterState, type SortKey } fr
 import { isDefaultFilters } from '@/app/lib/urlState'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
 import { Button } from '@/app/ui/Button'
-import { ToggleChip, TriStateChip } from '@/app/ui/Chip'
+import { ToggleChip } from '@/app/ui/Chip'
 import { TEXT } from '@/app/ui/colors'
-import { Field, Select } from '@/app/ui/Field'
+import { CheckboxRow, Field, Select, TriStateCheckbox } from '@/app/ui/Field'
 import { CARD, DIVIDED_TOP, LABEL, MUTED } from '@/app/ui/theme'
 
 const SORTS: { value: SortKey; label: string }[] = [
@@ -147,24 +147,24 @@ export default function PlanFilters({
       </div>
 
       <div className={`flex flex-wrap items-center gap-4 pt-3 ${DIVIDED_TOP}`}>
-        <ToggleChip on={filters.hsaOnly} onClick={() => set('hsaOnly', !filters.hsaOnly)}>
-          HSA eligible only
-        </ToggleChip>
+        <CheckboxRow
+          label="HSA eligible only"
+          checked={filters.hsaOnly}
+          onChange={(e) => set('hsaOnly', e.target.checked)}
+        />
         {hasDrugs && (
-          <TriStateChip
+          <TriStateCheckbox
             value={filters.drugCoverage}
             onChange={(next) => set('drugCoverage', next)}
-          >
-            Covers my drugs
-          </TriStateChip>
+            label="Covers my drugs"
+          />
         )}
         {hasProviders && (
-          <TriStateChip
+          <TriStateCheckbox
             value={filters.providerCoverage}
             onChange={(next) => set('providerCoverage', next)}
-          >
-            My providers in network
-          </TriStateChip>
+            label="My providers in network"
+          />
         )}
         <span className={`ml-auto ${MUTED}`}>
           showing <strong className={`font-bold ${TEXT.heading}`}>{shown}</strong> of {plans.length}
