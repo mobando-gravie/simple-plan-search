@@ -8,7 +8,7 @@ import type { PricedPlan } from '@/app/lib/services/planSearch'
 import { Button } from '@/app/ui/Button'
 import { ToggleChip, TriStateChip } from '@/app/ui/Chip'
 import { TEXT } from '@/app/ui/colors'
-import { CheckboxRow, Field, Select } from '@/app/ui/Field'
+import { Field, Select } from '@/app/ui/Field'
 import { CARD, DIVIDED_TOP, LABEL, MUTED } from '@/app/ui/theme'
 
 const SORTS: { value: SortKey; label: string }[] = [
@@ -147,11 +147,9 @@ export default function PlanFilters({
       </div>
 
       <div className={`flex flex-wrap items-center gap-4 pt-3 ${DIVIDED_TOP}`}>
-        <CheckboxRow
-          label="HSA eligible only"
-          checked={filters.hsaOnly}
-          onChange={(e) => set('hsaOnly', e.target.checked)}
-        />
+        <ToggleChip on={filters.hsaOnly} onClick={() => set('hsaOnly', !filters.hsaOnly)}>
+          HSA eligible only
+        </ToggleChip>
         {hasDrugs && (
           <TriStateChip
             value={filters.drugCoverage}

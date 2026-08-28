@@ -95,18 +95,16 @@ export function TriStateChip({
       role="checkbox"
       aria-checked={value === null ? false : ARIA_CHECKED[value]}
       onClick={() => onChange(CYCLE[(CYCLE.indexOf(value) + 1) % CYCLE.length])}
-      className={cx(CHIP, 'transition-colors', on ? CHIP_TONES.orange : TOGGLE_OFF)}
+      className={cx(
+        CHIP,
+        'transition-colors [&_svg]:size-3',
+        on ? CHIP_TONES.orange : TOGGLE_OFF,
+      )}
     >
-      <span
-        className={cx(
-          'inline-flex h-3.5 w-3.5 items-center justify-center rounded-xs border',
-          on ? BORDER.accent : BORDER.subtle,
-          '[&_svg]:size-3',
-        )}
-      >
-        {value === 'match' && <Check />}
-        {value === 'partial' && <Minus />}
-      </span>
+      {/* Tone already says active, as it does on the plain toggles; the glyph only
+          has to separate "some of them" from "all of them". */}
+      {value === 'match' && <Check />}
+      {value === 'partial' && <Minus />}
       {children}
     </button>
   )
