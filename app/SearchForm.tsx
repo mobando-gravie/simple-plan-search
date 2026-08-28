@@ -1,18 +1,27 @@
 'use client'
-import { RotateCw, Search } from 'lucide-react'
-import { useActionState, useRef } from 'react'
+import { Plus, RotateCw, Search, X } from 'lucide-react'
+import { useActionState, useRef, useState } from 'react'
 import { runSearch, type SearchState } from '@/app/actions/search'
+import type { Household } from '@/app/lib/household'
 import PlanTable from '@/app/PlanTable'
 import {
   BANNER_ERROR,
   BTN_OUTLINE,
   BTN_SOLID,
+  BTN_TEXT,
   CHECKBOX,
   FIELD,
   HINT,
   LABEL,
   PANEL,
 } from '@/app/ui/theme'
+
+/** A runaway-click guard, not a domain rule. */
+const MAX_CHILDREN = 10
+
+const GROUP_LABEL = 'text-header-h5 uppercase text-brown-gravie-50'
+// FIELD is w-full; appending w-24 loses to it, so swap the class out.
+const AGE_FIELD = FIELD.replace('w-full', 'w-24')
 
 function Field({
   label,
@@ -29,6 +38,22 @@ function Field({
   )
 }
 
+/**
+ * Uncontrolled on purpose. React resets the form once the action resolves, which
+ * restores a checkbox from its defaultChecked attribute — and does not afterwards
+ * re-sync a controlled `checked`, so a controlled box appears to clear itself.
+ */
+function TobaccoCheckbox({ name, defaultChecked }: { name: string; defaultChecked: boolean }) {
+  return (
+    <label className="flex items-center gap-2 whitespace-nowrap text-paragraph-small text-ink-50">
+      <input type="checkbox" name={name} className={CHECKBOX} defaultChecked={defaultChecked} />
+      Uses tobacco
+    </label>
+  )
+}
+
+type ChildRow = { id: number; age: string }
+
 export default function SearchForm() {
   const [state, action, pending] = useActionState<SearchState, FormData>(runSearch, {})
   const formRef = useRef<HTMLFormElement>(null)
@@ -38,6 +63,21 @@ export default function SearchForm() {
   // defaultValue — so the defaults have to echo what was just submitted, or the
   // criteria vanish and Refresh can no longer resubmit them.
   const submitted = state?.criteria
+  const household = submitted?.household
+
+  // Spouse and children are rows, not just values, so the post-action reset cannot
+  // restore them. Holding them as controlled state sidesteps the reset entirely and
+  // lets a returned household re-seed them (the sanctioned adjust-state-on-new-prop
+  // pattern — an effect here would only cause a second render).
+  const [spouse, setSpouse] = useState<{ age: string } | null>(null)
+  const [children, setChildren] = useState<ChildRow[]>([])
+  const [seededFrom, setSeededFrom] = useState<Household | null>(null)
+
+  if (household && household !== seededFrom) {
+    setSeededFrom(household)
+    setSpouse(household.spouse ? { age: String(household.spouse.age) } : null)
+    setChildren(household.children.map((child, i) => ({ id: i + 1, age: String(child.age) })))
+  }
 
   function refresh() {
     if (!refreshRef.current || !formRef.current) return
@@ -47,10 +87,10 @@ export default function SearchForm() {
 
   return (
     <div className="space-y-8">
-      <form ref={formRef} action={action} className={`${PANEL} space-y-5`}>
+      <form ref={formRef} action={action} className={`${PANEL} space-y-6`}>
         <input ref={refreshRef} type="hidden" name="refresh" value="false" />
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Field
             label="ZIP code"
             name="zipCode"
@@ -60,33 +100,22 @@ export default function SearchForm() {
             defaultValue={submitted?.zipCode ?? ''}
           />
           <Field
-            label="Adult ages"
-            name="adultAges"
-            placeholder="35"
-            hint="comma separated"
-            defaultValue={submitted ? submitted.adultAges.join(',') : '35'}
-          />
-          <Field
-            label="Child ages"
-            name="childAges"
-            placeholder="4,7"
-            hint="optional"
-            defaultValue={submitted?.childAges.join(',') ?? ''}
-          />
-          <Field
             label="Household income"
             name="householdIncome"
             placeholder="80000"
             inputMode="numeric"
+            hint="optional"
             defaultValue={submitted?.householdIncome ?? ''}
           />
-          <Field
-            label="Household size"
-            name="householdSize"
-            placeholder="4"
-            inputMode="numeric"
-            defaultValue={submitted?.householdSize ?? ''}
-          />
+          <label className="block">
+            <span className={LABEL}>Enrollment date</span>
+            <input
+              type="date"
+              name="enrollmentDate"
+              className={FIELD}
+              defaultValue={submitted?.enrollmentDate ?? ''}
+            />
+          </label>
           <Field
             label="Plans per page"
             name="perPage"
@@ -95,47 +124,153 @@ export default function SearchForm() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <label className="flex items-center gap-2 text-paragraph-small text-ink-50">
-            <input
-              type="checkbox"
-              name="smoker"
-              className={CHECKBOX}
-              defaultChecked={submitted?.smoker ?? false}
-            />
-            Primary applicant uses tobacco
-          </label>
-          <label className="flex items-center gap-2 whitespace-nowrap text-paragraph-small text-ink-50">
-            Enrollment date
-            <input
-              type="date"
-              name="enrollmentDate"
-              className={`${FIELD} w-auto`}
-              defaultValue={submitted?.enrollmentDate ?? ''}
-            />
-          </label>
-
-          <div className="ml-auto flex gap-2">
-            <button type="button" onClick={refresh} disabled={pending} className={BTN_OUTLINE}>
-              <RotateCw />
-              Refresh from Ideon
-            </button>
-            <button
-              type="submit"
-              disabled={pending}
-              onClick={() => refreshRef.current && (refreshRef.current.value = 'false')}
-              className={`${BTN_SOLID} px-6`}
-            >
-              <Search />
-              {pending ? 'Searching…' : 'Search'}
-            </button>
+        <div className="space-y-3 border-t border-brown-gravie-20 pt-5">
+          <p className={GROUP_LABEL}>Member</p>
+          <div className="flex flex-wrap items-end gap-4">
+            <label className="block">
+              <span className={LABEL}>Age</span>
+              <input
+                name="memberAge"
+                inputMode="numeric"
+                required
+                className={AGE_FIELD}
+                defaultValue={household?.member.age ?? 35}
+              />
+            </label>
+            <div className="pb-2.5">
+              <TobaccoCheckbox
+                name="memberTobacco"
+                defaultChecked={household?.member.tobacco ?? false}
+              />
+            </div>
           </div>
+        </div>
+
+        <div className="space-y-3 border-t border-brown-gravie-20 pt-5">
+          <div className="flex items-center justify-between">
+            <p className={GROUP_LABEL}>Spouse</p>
+            {!spouse && (
+              <button
+                type="button"
+                onClick={() => setSpouse({ age: '' })}
+                className={BTN_TEXT}
+              >
+                <Plus />
+                Add spouse
+              </button>
+            )}
+          </div>
+          {spouse ? (
+            <div className="flex flex-wrap items-end gap-4">
+              <label className="block">
+                <span className={LABEL}>Age</span>
+                <input
+                  name="spouseAge"
+                  inputMode="numeric"
+                  required
+                  className={AGE_FIELD}
+                  value={spouse.age}
+                  onChange={(e) => setSpouse({ age: e.target.value })}
+                />
+              </label>
+              <div className="pb-2.5">
+                <TobaccoCheckbox
+                  name="spouseTobacco"
+                  defaultChecked={household?.spouse?.tobacco ?? false}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setSpouse(null)}
+                className={`${BTN_TEXT} mb-1`}
+                aria-label="Remove spouse"
+              >
+                <X />
+                Remove
+              </button>
+            </div>
+          ) : (
+            <p className="text-paragraph-small text-brown-gravie-30">No spouse on this household.</p>
+          )}
+        </div>
+
+        <div className="space-y-3 border-t border-brown-gravie-20 pt-5">
+          <div className="flex items-center justify-between">
+            <p className={GROUP_LABEL}>Children</p>
+            {children.length < MAX_CHILDREN && (
+              <button
+                type="button"
+                onClick={() =>
+                  setChildren((rows) => [
+                    ...rows,
+                    { id: Math.max(0, ...rows.map((r) => r.id)) + 1, age: '' },
+                  ])
+                }
+                className={BTN_TEXT}
+              >
+                <Plus />
+                Add child
+              </button>
+            )}
+          </div>
+          {children.length === 0 ? (
+            <p className="text-paragraph-small text-brown-gravie-30">
+              No children on this household.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {children.map((child, i) => (
+                <li key={child.id} className="flex items-end gap-4">
+                  <label className="block">
+                    <span className={LABEL}>Child {i + 1} age</span>
+                    <input
+                      name="childAge"
+                      inputMode="numeric"
+                      required
+                      className={AGE_FIELD}
+                      value={child.age}
+                      onChange={(e) =>
+                        setChildren((rows) =>
+                          rows.map((r) => (r.id === child.id ? { ...r, age: e.target.value } : r)),
+                        )
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setChildren((rows) => rows.filter((r) => r.id !== child.id))}
+                    className={`${BTN_TEXT} mb-1`}
+                    aria-label={`Remove child ${i + 1}`}
+                  >
+                    <X />
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-brown-gravie-20 pt-5">
+          <button type="button" onClick={refresh} disabled={pending} className={BTN_OUTLINE}>
+            <RotateCw />
+            Refresh from Ideon
+          </button>
+          <button
+            type="submit"
+            disabled={pending}
+            onClick={() => refreshRef.current && (refreshRef.current.value = 'false')}
+            className={`${BTN_SOLID} px-6`}
+          >
+            <Search />
+            {pending ? 'Searching…' : 'Search'}
+          </button>
         </div>
       </form>
 
       {state?.error && <p className={BANNER_ERROR}>{state.error}</p>}
 
-      {state?.plans && state.meta && state.cache && (
+      {state?.plans && state.meta && state.cache && submitted && (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-paragraph-small text-brown-gravie-50">
             <span>
@@ -152,7 +287,10 @@ export default function SearchForm() {
                 : 'fetched live from Ideon'}
             </span>
           </div>
-          <PlanTable plans={state.plans} householdSize={state.meta.householdSize} />
+          <PlanTable
+            plans={state.plans}
+            household={submitted.household}
+          />
         </div>
       )}
     </div>

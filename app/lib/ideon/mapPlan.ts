@@ -1,6 +1,16 @@
 import { dollarsToCents, parseCurrencyToCents } from '../money'
 import type { CostShare, IdeonPlan } from './types'
 
+/** One person's slice of a plan's premium, as Ideon returns it. */
+export type ApplicantPremium = {
+  age: number | null
+  child: boolean
+  /** null on a composite-rated plan — Ideon prices those by household tier. */
+  premiumCents: number | null
+  /** ACA three-oldest-children-under-21 cap. */
+  waived: boolean
+}
+
 /** An Ideon plan reduced to the fields this app prices and displays, in cents. */
 export type MappedPlan = {
   hiosPlanId: string
@@ -16,6 +26,9 @@ export type MappedPlan = {
   deductibleFamilyCents: number | null
   outOfPocketMaxIndividualCents: number | null
   outOfPocketMaxFamilyCents: number | null
+  applicantPremiums: ApplicantPremium[]
+  /** True when no applicant carries a figure — the whole plan is tier priced. */
+  compositeRated: boolean
 }
 
 function inNetworkCents(share: CostShare | undefined): number | null {
@@ -24,6 +37,13 @@ function inNetworkCents(share: CostShare | undefined): number | null {
 
 export function mapPlan(plan: IdeonPlan): MappedPlan {
   const premium = plan.premium
+  const applicantPremiums: ApplicantPremium[] = (plan.premiums_by_applicant ?? []).map((a) => ({
+    age: a.age ?? null,
+    child: a.child === true,
+    premiumCents:
+      typeof a.premium === 'number' && Number.isFinite(a.premium) ? dollarsToCents(a.premium) : null,
+    waived: a.waived_for_total === true,
+  }))
   return {
     hiosPlanId: plan.id,
     planName: plan.display_name ?? plan.name ?? plan.id,
@@ -39,5 +59,8 @@ export function mapPlan(plan: IdeonPlan): MappedPlan {
     deductibleFamilyCents: inNetworkCents(plan.family_medical_deductible),
     outOfPocketMaxIndividualCents: inNetworkCents(plan.individual_medical_moop),
     outOfPocketMaxFamilyCents: inNetworkCents(plan.family_medical_moop),
+    applicantPremiums,
+    compositeRated:
+      applicantPremiums.length > 0 && applicantPremiums.every((a) => a.premiumCents === null),
   }
 }

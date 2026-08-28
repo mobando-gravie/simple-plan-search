@@ -1,6 +1,7 @@
 import { lookupZipCounty, planSearchBody, searchPlans as ideonSearchPlans } from '../ideon/client'
 import { mapPlan, type MappedPlan } from '../ideon/mapPlan'
-import type { Applicant, IdeonPlanSearchResponse, PlanSearchInput } from '../ideon/types'
+import type { IdeonPlanSearchResponse, PlanSearchInput } from '../ideon/types'
+import { DEFAULT_HOUSEHOLD, householdSize, toApplicants, type Household } from '../household'
 import { applyModifier, findModifier, IDENTITY, type GravieModifier } from '../modifier'
 import { activeModifiers } from '../repos/modifierRepo'
 import { cacheKeyFor, findCached, upsertCached } from '../repos/planCacheRepo'
@@ -15,11 +16,8 @@ function ttlSeconds(): number {
 
 export type SearchCriteria = {
   zipCode: string
-  adultAges: number[]
-  childAges: number[]
-  smoker: boolean
+  household: Household
   householdIncome?: number
-  householdSize?: number
   enrollmentDate?: string
   perPage: number
   page: number
@@ -42,7 +40,6 @@ export type SearchResult = {
     fipsCode: string
     state: string
     countyName: string | null
-    householdSize: number
     modifiersApplied: number
   }
   cache: { hit: boolean; fetchedAt: Date; ageSeconds: number }
@@ -50,28 +47,11 @@ export type SearchResult = {
 
 export const DEFAULT_CRITERIA: SearchCriteria = {
   zipCode: '',
-  adultAges: [35],
-  childAges: [],
-  smoker: false,
+  household: DEFAULT_HOUSEHOLD,
   perPage: 50,
   page: 1,
   sort: 'premium:asc',
   market: 'individual',
-}
-
-function applicantsFor(criteria: SearchCriteria): Applicant[] {
-  const adults: Applicant[] = criteria.adultAges.map((age, i) => ({
-    age,
-    // Ideon's contract applies the smoker flag to the primary applicant only.
-    smoker: i === 0 ? criteria.smoker : false,
-    child: false,
-  }))
-  const children: Applicant[] = criteria.childAges.map((age) => ({
-    age,
-    smoker: false,
-    child: true,
-  }))
-  return [...adults, ...children]
 }
 
 /** Cached zip → FIPS. Ideon requires fips_code on every plan search. */
@@ -117,9 +97,9 @@ export async function searchPlans(
     zipCode: criteria.zipCode,
     fipsCode: county.fipsCode,
     market: criteria.market,
-    applicants: applicantsFor(criteria),
+    applicants: toApplicants(criteria.household),
     householdIncome: criteria.householdIncome,
-    householdSize: criteria.householdSize,
+    householdSize: householdSize(criteria.household),
     enrollmentDate: criteria.enrollmentDate,
     page: criteria.page,
     perPage: criteria.perPage,
@@ -167,7 +147,6 @@ export async function searchPlans(
       fipsCode: county.fipsCode,
       state: county.state,
       countyName: county.countyName,
-      householdSize: criteria.adultAges.length + criteria.childAges.length,
       modifiersApplied: plans.filter((p) => p.modifierId !== null).length,
     },
     cache: {

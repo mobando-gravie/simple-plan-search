@@ -27,6 +27,14 @@ export type IdeonPlan = {
   name?: string | null
   display_name?: string | null
   premium?: number | null
+  premiums_by_applicant?: {
+    age?: number | null
+    child?: boolean | null
+    smoker?: boolean | null
+    premium?: number | null
+    composite_rated?: boolean | null
+    waived_for_total?: boolean | null
+  }[]
   carrier_name?: string | null
   hios_issuer_id?: string | null
   level?: string | null

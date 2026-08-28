@@ -1,4 +1,5 @@
 'use server'
+import type { Household } from '@/app/lib/household'
 import { searchPlans, type SearchCriteria, DEFAULT_CRITERIA } from '@/app/lib/services/planSearch'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
 
@@ -11,18 +12,18 @@ export type SearchState = {
     fipsCode: string
     state: string
     countyName: string | null
-    householdSize: number
     modifiersApplied: number
   }
   cache?: { hit: boolean; fetchedAt: string; ageSeconds: number }
 }
 
-function ages(raw: FormDataEntryValue | null): number[] {
-  if (typeof raw !== 'string' || raw.trim() === '') return []
-  return raw
-    .split(',')
-    .map((s) => Number(s.trim()))
-    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 120)
+const MAX_AGE = 120
+
+/** null when absent or not a whole age in range — the caller decides if that's fatal. */
+function age(raw: FormDataEntryValue | null): number | null {
+  if (typeof raw !== 'string' || raw.trim() === '') return null
+  const n = Number(raw)
+  return Number.isInteger(n) && n >= 0 && n <= MAX_AGE ? n : null
 }
 
 function optionalNumber(raw: FormDataEntryValue | null): number | undefined {
@@ -37,19 +38,38 @@ export async function runSearch(_state: SearchState, formData: FormData): Promis
     return { error: 'Enter a 5-digit ZIP code.' }
   }
 
-  const adultAges = ages(formData.get('adultAges'))
-  if (adultAges.length === 0) {
-    return { error: 'Enter at least one adult age.' }
+  const memberAge = age(formData.get('memberAge'))
+  if (memberAge === null) {
+    return { error: `Enter the member's age (0–${MAX_AGE}).` }
+  }
+
+  const spouseRaw = formData.get('spouseAge')
+  const spousePresent = typeof spouseRaw === 'string'
+  const spouseAge = age(spouseRaw)
+  if (spousePresent && spouseAge === null) {
+    return { error: `Enter the spouse's age (0–${MAX_AGE}), or remove the spouse.` }
+  }
+
+  const childAges = formData.getAll('childAge').map(age)
+  const badChild = childAges.indexOf(null)
+  if (badChild >= 0) {
+    return { error: `Enter an age (0–${MAX_AGE}) for child ${badChild + 1}, or remove them.` }
+  }
+
+  const household: Household = {
+    member: { age: memberAge, tobacco: formData.get('memberTobacco') === 'on' },
+    spouse:
+      spouseAge === null
+        ? null
+        : { age: spouseAge, tobacco: formData.get('spouseTobacco') === 'on' },
+    children: (childAges as number[]).map((childAge) => ({ age: childAge })),
   }
 
   const criteria: SearchCriteria = {
     ...DEFAULT_CRITERIA,
     zipCode,
-    adultAges,
-    childAges: ages(formData.get('childAges')),
-    smoker: formData.get('smoker') === 'on',
+    household,
     householdIncome: optionalNumber(formData.get('householdIncome')),
-    householdSize: optionalNumber(formData.get('householdSize')),
     enrollmentDate: String(formData.get('enrollmentDate') ?? '').trim() || undefined,
     perPage: optionalNumber(formData.get('perPage')) ?? 50,
   }

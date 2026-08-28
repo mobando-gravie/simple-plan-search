@@ -4,6 +4,7 @@
  */
 import { writeFile } from 'node:fs/promises'
 import { compare, type CompareReport } from '../app/lib/services/compareService'
+import { householdMembers, type Household } from '../app/lib/household'
 import { DEFAULT_CRITERIA, searchPlans, type SearchCriteria } from '../app/lib/services/planSearch'
 import { fetchBaseline, loadBaselineFile } from '../app/lib/shopping/client'
 import { formatCents, formatCentsDelta } from '../app/lib/money'
@@ -17,12 +18,12 @@ USAGE
 
 SEARCH
   --zip <zip>                  required
-  --age <n>                    single adult age (default 35)
-  --adults <a,b>               adult ages, overrides --age
-  --children <a,b>             dependent child ages
-  --smoker                     primary applicant uses tobacco
+  --member-age <n>             the member's age (default 35)
+  --member-tobacco             the member uses tobacco
+  --spouse-age <n>             adds a spouse of this age
+  --spouse-tobacco             the spouse uses tobacco
+  --child-age <n>              adds a child; repeat once per child
   --income <n>                 household income
-  --household-size <n>         household size
   --enrollment-date <date>     YYYY-MM-DD
   --market <individual|small_group>
   --limit <n>                  plans per page (default 100)
@@ -62,12 +63,6 @@ function parseArgs(argv: string[]): Flags {
 const flags = parseArgs(process.argv.slice(2))
 const first = (k: string) => flags.get(k)?.[0]
 const has = (k: string) => flags.has(k)
-const numbers = (k: string) =>
-  (first(k) ?? '')
-    .split(',')
-    .map((s) => Number(s.trim()))
-    .filter((n) => Number.isInteger(n) && n >= 0)
-
 function fail(message: string): never {
   console.error(`error: ${message}\n`)
   console.error(USAGE)
@@ -82,19 +77,28 @@ if (has('help') || has('h') || flags.size === 0) {
 const zip = first('zip')
 if (!zip) fail('--zip is required')
 
-const adultAges = has('adults') ? numbers('adults') : [Number(first('age') ?? 35)]
-if (adultAges.length === 0 || adultAges.some((a) => !Number.isInteger(a))) {
-  fail('--age / --adults must be whole numbers')
+function wholeAge(raw: string | undefined, flag: string): number {
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 0 || n > 120) fail(`${flag} must be a whole age 0–120`)
+  return n
+}
+
+const household: Household = {
+  member: {
+    age: has('member-age') ? wholeAge(first('member-age'), '--member-age') : 35,
+    tobacco: has('member-tobacco'),
+  },
+  spouse: has('spouse-age')
+    ? { age: wholeAge(first('spouse-age'), '--spouse-age'), tobacco: has('spouse-tobacco') }
+    : null,
+  children: (flags.get('child-age') ?? []).map((raw) => ({ age: wholeAge(raw, '--child-age') })),
 }
 
 const criteria: SearchCriteria = {
   ...DEFAULT_CRITERIA,
   zipCode: zip,
-  adultAges,
-  childAges: has('children') ? numbers('children') : [],
-  smoker: has('smoker'),
+  household,
   householdIncome: has('income') ? Number(first('income')) : undefined,
-  householdSize: has('household-size') ? Number(first('household-size')) : undefined,
   enrollmentDate: first('enrollment-date'),
   market: (first('market') as SearchCriteria['market']) ?? 'individual',
   perPage: Number(first('limit') ?? 100),
@@ -209,7 +213,9 @@ const report = compare(ours, baseline, toleranceCents)
 if (!has('quiet')) {
   console.log(
     `zip ${criteria.zipCode} (FIPS ${ours.meta.fipsCode}, ${ours.meta.state})  ` +
-      `adults ${criteria.adultAges.join(',')}  children ${criteria.childAges.join(',') || 'none'}  ` +
+      `household ${householdMembers(criteria.household)
+        .map((m) => `${m.relation}:${m.age}${m.tobacco ? '+tobacco' : ''}`)
+        .join(' ')}  ` +
       `cache ${ours.cache.hit ? `hit (${ours.cache.ageSeconds}s old)` : 'miss'}\n`,
   )
   printTable(report)

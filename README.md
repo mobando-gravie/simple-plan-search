@@ -63,12 +63,16 @@ carries the CSV shape and a starting `plancatalog` query.
 against ichra-shopping's premiums, joined on HIOS plan id.
 
 ```bash
-npm run compare -- --zip 11201 --age 35 --baseline-file shopping-plans.json
-npm run compare -- --zip 11201 --adults 34,32 --children 4,4 --income 80000 \
+npm run compare -- --zip 11201 --member-age 35 --baseline-file shopping-plans.json
+npm run compare -- --zip 11201 --member-age 34 --spouse-age 32 \
+                   --child-age 4 --child-age 7 --income 80000 \
                    --baseline-url https://shopping.qa.example --interview 1234 \
                    --header "Authorization: Bearer $TOKEN" \
                    --tolerance-cents 100 --csv diff.csv
 ```
+
+The household is one member plus an optional spouse plus any number of children —
+`--spouse-age` adds the spouse, and `--child-age` is repeated once per child.
 
 Shopping does not call Ideon — it calls IMPC and computes the household premium
 itself (Method A tiered rates, else Method B age-banded with the ACA

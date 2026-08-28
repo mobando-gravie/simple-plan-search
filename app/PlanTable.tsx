@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react'
+import { householdMembers, householdSize, RELATION_LABEL, type Household } from '@/app/lib/household'
 import { formatCents, formatCentsDelta } from '@/app/lib/money'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
 import { CHIP, TABLE_WRAP, TBODY, TD, TH, TH_RIGHT, THEAD, TR } from '@/app/ui/theme'
@@ -30,18 +31,62 @@ function modifierSummary(plan: PricedPlan): string {
   return parts.length > 0 ? parts.join(' ') : 'identity'
 }
 
+/**
+ * Ideon echoes applicants back in the order they were sent, so zipping against the
+ * household recovers each person's relation. A composite-rated plan carries no
+ * per-person figures at all — Ideon prices those by household tier.
+ */
+function MemberBreakdown({ plan, household }: { plan: PricedPlan; household: Household }) {
+  if (plan.applicantPremiums.length === 0) return null
+
+  const members = householdMembers(household)
+  return (
+    <details className="mt-1.5">
+      <summary className="cursor-pointer text-paragraph-extra-small text-marketplace-orange-60">
+        Per-member premium
+      </summary>
+      {plan.compositeRated ? (
+        <p className="mt-1 text-paragraph-extra-small text-brown-gravie-50">
+          Composite rated — Ideon prices this plan by household tier, not per person.
+        </p>
+      ) : (
+        <ul className="mt-1 space-y-0.5">
+          {plan.applicantPremiums.map((applicant, i) => (
+            <li
+              key={i}
+              className="flex justify-between gap-4 text-paragraph-extra-small text-brown-gravie-50"
+            >
+              <span>
+                {RELATION_LABEL[members[i]?.relation ?? (applicant.child ? 'child' : 'primary')]}
+                {applicant.age !== null && ` · age ${applicant.age}`}
+              </span>
+              <span className="tnum">
+                {applicant.waived ? (
+                  <span title="ACA three-oldest-children-under-21 cap">not charged</span>
+                ) : (
+                  formatCents(applicant.premiumCents)
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  )
+}
+
 export default function PlanTable({
   plans,
-  householdSize,
+  household,
 }: {
   plans: PricedPlan[]
-  householdSize: number
+  household: Household
 }) {
   if (plans.length === 0) {
     return <p className="text-paragraph-small text-brown-gravie-50">No plans matched this search.</p>
   }
 
-  const family = householdSize > 1
+  const family = householdSize(household) > 1
   const costShareLabel = family ? 'family' : 'individual'
   const deductibleOf = (p: PricedPlan) =>
     family ? p.deductibleFamilyCents : p.deductibleIndividualCents
@@ -80,6 +125,7 @@ export default function PlanTable({
                     </span>
                   )}
                 </div>
+                <MemberBreakdown plan={plan} household={household} />
               </td>
               <td className={TD}>
                 <MetalBadge level={plan.metalLevel} />
