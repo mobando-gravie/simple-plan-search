@@ -1,3 +1,4 @@
+import { LoaderCircle } from 'lucide-react'
 import { cx } from './cx'
 import { BTN_OUTLINE, BTN_SOLID, BTN_TEXT, BTN_TEXT_DESTRUCTIVE } from './theme'
 import { HOVER, TEXT } from './colors'
@@ -13,7 +14,11 @@ export type ButtonVariant = keyof typeof VARIANTS
 
 type ButtonProps = {
   variant?: ButtonVariant
-  /** Disables and swaps the label — every submit in the app does this. */
+  /**
+   * The action is running: disables, announces via aria-busy, and replaces the
+   * children with a spinner and pendingLabel. Replaces rather than prepends, so the
+   * button's own icon does not sit next to the spinner.
+   */
   pending?: boolean
   pendingLabel?: string
 } & React.ButtonHTMLAttributes<HTMLButtonElement>
@@ -31,9 +36,17 @@ export function Button({
     <button
       {...button}
       disabled={disabled || pending}
+      aria-busy={pending || undefined}
       className={cx(VARIANTS[variant], className)}
     >
-      {pending && pendingLabel ? pendingLabel : children}
+      {pending ? (
+        <>
+          <LoaderCircle className="animate-spin" />
+          {pendingLabel}
+        </>
+      ) : (
+        children
+      )}
     </button>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 import { ChevronDown, ChevronUp, Plus, RotateCw, Search, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { refreshSearch } from '@/app/actions/search'
 import { addUnique } from '@/app/lib/array'
 import { minutesAgo } from '@/app/lib/dates'
@@ -22,6 +22,7 @@ import PlanResults from '@/app/PlanResults'
 import { Button, IconButton } from '@/app/ui/Button'
 import { BORDER, TEXT } from '@/app/ui/colors'
 import { CheckboxRow, Field } from '@/app/ui/Field'
+import { useAsyncAction } from '@/app/ui/useAsyncAction'
 import { BANNER_ERROR, CARD, DIVIDED_TOP, MUTED, PANEL } from '@/app/ui/theme'
 
 /** A runaway-click guard, not a domain rule. */
@@ -54,7 +55,10 @@ export default function SearchForm({
   error: string | null
 }) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  const searchAction = useAsyncAction()
+  const refreshAction = useAsyncAction()
+  // Either action in flight blocks both buttons; only the clicked one spins.
+  const busy = searchAction.pending || refreshAction.pending
   const [refreshError, setRefreshError] = useState<string | null>(null)
 
   // Identity for the criteria the URL currently describes. The object reference
@@ -132,12 +136,13 @@ export default function SearchForm({
       providers,
       drugs,
     }
-    router.push(`/?${encodeCriteria(next)}`)
+    // Inside the transition, not beside it — a bare push reports no pending state.
+    searchAction.run(() => router.push(`/?${encodeCriteria(next)}`))
   }
 
   function refresh() {
     setRefreshError(null)
-    startTransition(async () => {
+    refreshAction.run(async () => {
       const { error: failed } = await refreshSearch(window.location.search)
       if (failed) setRefreshError(failed)
       else router.refresh()
@@ -353,11 +358,24 @@ export default function SearchForm({
         </div>
 
         <div className={`flex justify-end gap-2 pt-5 ${DIVIDED_TOP}`}>
-          <Button type="button" variant="outline" onClick={refresh} disabled={pending || !criteria}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={refresh}
+            pending={refreshAction.pending}
+            pendingLabel="Refreshing…"
+            disabled={busy || !criteria}
+          >
             <RotateCw />
             Refresh from Ideon
           </Button>
-          <Button type="submit" pending={pending} pendingLabel="Searching…" className="px-6">
+          <Button
+            type="submit"
+            pending={searchAction.pending}
+            pendingLabel="Searching…"
+            disabled={busy}
+            className="px-6"
+          >
             <Search />
             Search
           </Button>
