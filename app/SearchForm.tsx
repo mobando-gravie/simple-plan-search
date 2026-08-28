@@ -329,17 +329,6 @@ export default function SearchForm({
                 Add child
               </Button>
             )}
-            {dirty && (
-              <Button
-                type="button"
-                variant="textDestructive"
-                onClick={clearAll}
-                disabled={busy}
-              >
-                <X />
-                Clear all
-              </Button>
-            )}
           </div>
         </div>
 
@@ -405,6 +394,20 @@ export default function SearchForm({
         </div>
 
         <div className={`flex justify-end gap-2 pt-5 ${DIVIDED_TOP}`}>
+          {dirty && (
+            // mr-auto rather than justify-between: the other two must stay together
+            // on the right when this one is not rendered.
+            <Button
+              type="button"
+              variant="textDestructive"
+              onClick={clearAll}
+              disabled={busy}
+              className="mr-auto"
+            >
+              <X />
+              Clear all
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
