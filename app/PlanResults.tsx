@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { applyPlanFilters, type PlanFilterState } from '@/app/lib/planFilter'
-import type { SelectedDrug } from '@/app/lib/ideon/types'
+import type { SelectedDrug, SelectedProvider } from '@/app/lib/ideon/types'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
 import { encodeView } from '@/app/lib/urlState'
 import PlanFilters from '@/app/PlanFilters'
@@ -18,12 +18,14 @@ export default function PlanResults({
   filters: initialFilters,
   openPlanId: initialOpenPlanId,
   allowanceCents = 0,
+  providers = [],
   drugs = [],
 }: {
   plans: PricedPlan[]
   filters: PlanFilterState
   openPlanId: string | null
   allowanceCents?: number
+  providers?: SelectedProvider[]
   drugs?: SelectedDrug[]
 }) {
   const [filters, setFilters] = useState(initialFilters)
@@ -34,8 +36,10 @@ export default function PlanResults({
     [plans, filters, allowanceCents],
   )
 
-  const hasProviders = plans.some((p) => p.coverage.providers.length > 0)
-  const hasDrugs = plans.some((p) => p.coverage.drugs.length > 0)
+  // What the member asked about, not what Ideon answered — a plan that returns no
+  // coverage rows must not make the filter disappear.
+  const hasProviders = providers.length > 0
+  const hasDrugs = drugs.length > 0
 
   /**
    * Filtering and opening a plan are client-side derivations over plans already in
@@ -74,6 +78,7 @@ export default function PlanResults({
           openPlanId={openPlanId}
           onOpenPlan={(hiosPlanId) => update(filters, hiosPlanId)}
           allowanceCents={allowanceCents}
+          providers={providers}
           drugs={drugs}
         />
       </div>

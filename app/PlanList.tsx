@@ -1,7 +1,7 @@
 'use client'
 import Image from 'next/image'
-import { coverageMatch } from '@/app/lib/ideon/coverage'
-import type { SelectedDrug } from '@/app/lib/ideon/types'
+import { countCovered, countInNetwork, coverageMatch } from '@/app/lib/ideon/coverage'
+import type { SelectedDrug, SelectedProvider } from '@/app/lib/ideon/types'
 import { formatCents, netPremiumCents } from '@/app/lib/money'
 import { sbcUrl } from '@/app/lib/planBenefits'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
@@ -78,6 +78,7 @@ export default function PlanList({
   openPlanId,
   onOpenPlan,
   allowanceCents = 0,
+  providers = [],
   drugs = [],
 }: {
   plans: PricedPlan[]
@@ -86,10 +87,11 @@ export default function PlanList({
   openPlanId: string | null
   onOpenPlan: (hiosPlanId: string | null) => void
   allowanceCents?: number
+  /** What the member asked about — the coverage denominator, not Ideon's answer. */
+  providers?: SelectedProvider[]
   drugs?: SelectedDrug[]
 }) {
   const openPlan = allPlans.find((p) => p.hiosPlanId === openPlanId) ?? null
-  const unresolvedDrugs = drugs.filter((d) => d.ndc === null).length
 
   const hasAllowance = allowanceCents > 0
   // Rendered in both branches: a shared link can name a plan the filters it carries
@@ -111,13 +113,8 @@ export default function PlanList({
     <>
       <ul className="space-y-4">
         {plans.map((plan) => {
-          const providers = plan.coverage.providers
-          const planDrugs = plan.coverage.drugs
-          const inNetwork = providers.filter((p) => p.inNetwork).length
-          const covered = planDrugs.filter((d) => d.covered).length
-          // An unresolved identifier was never sent to Ideon, so it has no coverage
-          // row. Counting it in the denominator keeps the chip from overstating.
-          const drugTotal = planDrugs.length + unresolvedDrugs
+          const inNetwork = countInNetwork(providers, plan.coverage)
+          const covered = countCovered(drugs, plan.coverage)
           const easyEnroll = plan.enrollmentType === 'EASY_ENROLL'
           const sbc = sbcUrl(plan.documents)
 
@@ -175,10 +172,10 @@ export default function PlanList({
                       </Chip>
                     </Tip>
                   )}
-                  {drugTotal > 0 && (
+                  {drugs.length > 0 && (
                     <Tip copy={TOOLTIP_COPY.prescriptions}>
-                      <Chip tone={TONE_BY_MATCH[coverageMatch(covered, drugTotal)]}>
-                        Prescriptions {covered} of {drugTotal}
+                      <Chip tone={TONE_BY_MATCH[coverageMatch(covered, drugs.length)]}>
+                        Prescriptions {covered} of {drugs.length}
                       </Chip>
                     </Tip>
                   )}

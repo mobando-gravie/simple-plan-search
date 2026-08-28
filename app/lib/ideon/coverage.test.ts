@@ -1,12 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  countCovered,
+  countInNetwork,
   coverageMatch,
   coveragesByPlan,
   inNetworkCents,
   inNetworkCostShare,
   isCoveredTier,
   planCoverage,
+  type PlanCoverage,
 } from './coverage'
 import type { IdeonPlan } from './types'
 
@@ -113,4 +116,65 @@ test('coverage match has three states, so partial is not the same as none', () =
 
 test('nothing selected is none, not a vacuous match', () => {
   assert.equal(coverageMatch(0, 0), 'none')
+})
+
+const emptyCoverage: PlanCoverage = { providers: [], drugs: [] }
+
+const drugRow = (ndc: string, covered: boolean) => ({
+  ndc,
+  tier: covered ? 'generic' : null,
+  covered,
+  priorAuthorization: false,
+  quantityLimit: false,
+})
+
+test('countInNetwork counts only the requested providers Ideon confirmed', () => {
+  const coverage: PlanCoverage = {
+    providers: [
+      { npi: 111, inNetwork: true },
+      { npi: 222, inNetwork: false },
+    ],
+    drugs: [],
+  }
+  assert.equal(countInNetwork([{ npi: 111 }, { npi: 222 }], coverage), 1)
+})
+
+test('a provider with no returned row is not in network, and stays in the denominator', () => {
+  // Ideon answered about 111 only; 333 was requested but came back nowhere.
+  const coverage: PlanCoverage = { providers: [{ npi: 111, inNetwork: true }], drugs: [] }
+  const selected = [{ npi: 111 }, { npi: 333 }]
+
+  assert.equal(countInNetwork(selected, coverage), 1)
+  // The denominator is the caller's list length — 2, not the 1 row that came back.
+  assert.equal(selected.length, 2, '1 of 2, never 1 of 1')
+})
+
+test('no coverage rows at all means nothing is in network, not an empty list', () => {
+  assert.equal(countInNetwork([{ npi: 111 }, { npi: 222 }], emptyCoverage), 0)
+})
+
+test('a returned row for a provider that was never requested is ignored', () => {
+  const coverage: PlanCoverage = { providers: [{ npi: 999, inNetwork: true }], drugs: [] }
+  assert.equal(countInNetwork([{ npi: 111 }], coverage), 0)
+})
+
+test('countCovered counts only the requested drugs Ideon confirmed covered', () => {
+  const coverage: PlanCoverage = {
+    providers: [],
+    drugs: [drugRow('aaa', true), drugRow('bbb', false)],
+  }
+  assert.equal(countCovered([{ ndc: 'aaa' }, { ndc: 'bbb' }], coverage), 1)
+})
+
+test('a drug whose identifier never resolved has a null ndc and can never be covered', () => {
+  const coverage: PlanCoverage = { providers: [], drugs: [drugRow('aaa', true)] }
+  const selected = [{ ndc: 'aaa' }, { ndc: null }]
+
+  assert.equal(countCovered(selected, coverage), 1)
+  assert.equal(selected.length, 2, '1 of 2 — the unresolved drug is still counted against')
+})
+
+test('a drug with no returned coverage row is not covered', () => {
+  const coverage: PlanCoverage = { providers: [], drugs: [drugRow('aaa', true)] }
+  assert.equal(countCovered([{ ndc: 'aaa' }, { ndc: 'zzz' }], coverage), 1)
 })

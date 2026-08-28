@@ -429,6 +429,7 @@ export default function SearchForm({
             filters={filters}
             openPlanId={openPlanId}
             allowanceCents={criteria.allowanceCents ?? 0}
+            providers={criteria.providers}
             drugs={criteria.drugs}
           />
         </div>

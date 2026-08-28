@@ -85,3 +85,22 @@ export function coverageMatch(covered: number, total: number): CoverageMatch {
   if (total > 0 && covered === total) return 'match'
   return covered === 0 ? 'none' : 'partial'
 }
+
+/**
+ * Counts read from what the member asked about, looking the answer up rather than
+ * counting what came back. A provider or drug Ideon returned no row for is not
+ * covered — it never silently leaves the denominator and overstates the match.
+ */
+export function countInNetwork(
+  selected: { npi: number }[],
+  coverage: PlanCoverage,
+): number {
+  const inNetwork = new Set(coverage.providers.filter((p) => p.inNetwork).map((p) => p.npi))
+  return selected.filter((s) => inNetwork.has(s.npi)).length
+}
+
+/** A null ndc is an identifier that never resolved, so it can never be covered. */
+export function countCovered(selected: { ndc: string | null }[], coverage: PlanCoverage): number {
+  const covered = new Set(coverage.drugs.filter((d) => d.covered).map((d) => d.ndc))
+  return selected.filter((s) => s.ndc !== null && covered.has(s.ndc)).length
+}
