@@ -43,7 +43,10 @@ export function fieldClass(width = 'w-full'): string {
   return `${width} ${FIELD_BASE}`
 }
 
-export const LABEL = `mb-1.5 block text-paragraph-small font-bold ${TEXT.body}`
+/** Without the margin, for a label sharing a row with something else. */
+export const LABEL_TEXT = `block text-paragraph-small font-bold ${TEXT.body}`
+
+export const LABEL = `mb-1.5 ${LABEL_TEXT}`
 
 export const HINT = `mt-1 block text-paragraph-extra-small ${TEXT.muted}`
 

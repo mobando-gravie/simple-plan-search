@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "compare": "tsx --env-file=.env.local scripts/compare.ts",
-    "test": "tsx --test \"app/**/*.test.ts\""
+    "test": "tsx --test \"app/**/*.test.ts\"",
+    "warm-labels": "tsx --env-file=.env.local scripts/warm-labels.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

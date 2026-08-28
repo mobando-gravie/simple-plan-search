@@ -255,3 +255,22 @@ test('a full shareable link decodes to all three pieces of state', () => {
   assert.equal(state.filters.sort, 'free-floor')
   assert.equal(state.openPlanId, '25303NY0610001')
 })
+
+test('an unresolved drug round-trips as r<rxcui> so a shared link keeps the denominator', () => {
+  const criteria: SearchCriteria = {
+    ...DEFAULT_CRITERIA,
+    zipCode: '11201',
+    household: { member: { age: 35, tobacco: false }, spouse: null, children: [] },
+    drugs: [
+      { medId: 281606, ndc: '63187-0748-28', name: 'norethindrone' },
+      { medId: 0, ndc: null, name: 'RxCUI 999999', rxcui: 999999 },
+    ],
+  }
+  const encoded = encodeCriteria(criteria)
+  assert.equal(encoded.get('x'), '281606_63187-0748-28.r999999')
+
+  const back = decodeUrlState(encoded).criteria
+  assert.equal(back?.drugs.length, 2, 'the unresolved drug must survive the round trip')
+  assert.equal(back?.drugs[1].ndc, null)
+  assert.equal(back?.drugs[1].rxcui, 999999)
+})

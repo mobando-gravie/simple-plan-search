@@ -104,10 +104,21 @@ function decodeProviders(raw: string | null): SelectedProvider[] {
     .map((npi) => ({ npi, name: String(npi) }))
 }
 
-/** medId is the selection key, the NDC drives the coverage query — both load-bearing. */
+/**
+ * `medId_ndc` for a resolved drug; `r<rxcui>` for one whose identifier never resolved.
+ * The unresolved form has to travel too — dropping it from a shared link would shrink
+ * the coverage denominator and overstate how much of the list a plan covers.
+ */
 function decodeDrugs(raw: string | null): SelectedDrug[] {
   const out: SelectedDrug[] = []
   for (const item of list(raw)) {
+    if (item.startsWith('r')) {
+      const rxcui = Number(item.slice(1))
+      if (Number.isInteger(rxcui) && rxcui > 0) {
+        out.push({ medId: 0, ndc: null, name: `RxCUI ${rxcui}`, rxcui })
+      }
+      continue
+    }
     const [medIdRaw, ndc] = item.split(FIELD)
     const medId = Number(medIdRaw)
     if (!Number.isInteger(medId) || medId <= 0 || !ndc) continue
@@ -209,7 +220,12 @@ export function encodeCriteria(criteria: SearchCriteria): URLSearchParams {
     p.set('p', criteria.providers.map((provider) => provider.npi).join(LIST))
   }
   if (criteria.drugs.length > 0) {
-    p.set('x', criteria.drugs.map((drug) => `${drug.medId}${FIELD}${drug.ndc}`).join(LIST))
+    p.set(
+      'x',
+      criteria.drugs
+        .map((drug) => (drug.ndc ? `${drug.medId}${FIELD}${drug.ndc}` : `r${drug.rxcui}`))
+        .join(LIST),
+    )
   }
   return p
 }

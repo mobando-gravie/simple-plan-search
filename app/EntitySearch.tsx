@@ -1,19 +1,22 @@
 'use client'
-import { Plus, Search } from 'lucide-react'
+import { ClipboardList, Plus, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { errorMessage } from '@/app/lib/errors'
+import { looksLikeMedIds, parseIdentifiers } from '@/app/lib/identifiers'
 import { MIN_SEARCH_TERM } from '@/app/lib/validation'
-import { RemovableChip } from '@/app/ui/Chip'
+import { Button } from '@/app/ui/Button'
+import { RemovableChip, ToggleChip } from '@/app/ui/Chip'
 import { TEXT } from '@/app/ui/colors'
 import { Field } from '@/app/ui/Field'
-import { CARD, DIVIDED_LIST, FAINT_XS, HOVER_ROW } from '@/app/ui/theme'
+import { useAsyncAction } from '@/app/ui/useAsyncAction'
+import { BANNER_WARN, CARD, DIVIDED_LIST, FAINT_XS, FIELD, HOVER_ROW, LABEL_TEXT, MUTED_XS } from '@/app/ui/theme'
 
 /**
  * One typeahead, used for both providers and prescriptions. mk03 ships these as
  * two near-identical 200-line components; the only real differences are the
  * endpoint, the row renderer and the placeholder, so they are parameters here.
  */
-export type EntitySearchProps<T> = {
+export type EntitySearchProps<T, S> = {
   label: string
   placeholder: string
   /** null suppresses searching — e.g. providers need a ZIP first. */
@@ -24,11 +27,16 @@ export type EntitySearchProps<T> = {
   selected: { key: string; label: string }[]
   onAdd: (hit: T) => void
   onRemove: (key: string) => void
+  /** 'provider' resolves NPIs, 'drug' resolves RxCUIs. */
+  identifierKind: 'provider' | 'drug'
+  identifierHint: string
+  /** Hands back everything the paste resolved, including the ones that did not. */
+  onPaste: (resolved: S[]) => void
 }
 
 const DEBOUNCE_MS = 300
 
-export default function EntitySearch<T>({
+export default function EntitySearch<T, S>({
   label,
   placeholder,
   buildUrl,
@@ -38,7 +46,19 @@ export default function EntitySearch<T>({
   selected,
   onAdd,
   onRemove,
-}: EntitySearchProps<T>) {
+  identifierKind,
+  identifierHint,
+  onPaste,
+}: EntitySearchProps<T, S>) {
+  const [byIdentifier, setByIdentifier] = useState(false)
+  const [pasted, setPasted] = useState('')
+  // Carries the ids it was asked about: the textarea is cleared on success, so the
+  // med-id hint would have nothing left to test against.
+  const [outcome, setOutcome] = useState<{
+    asked: string[]
+    unresolved: string[]
+  } | null>(null)
+  const resolving = useAsyncAction()
   const [term, setTerm] = useState('')
   const [loaded, setLoaded] = useState<{ url: string; hits: T[]; error: string | null } | null>(
     null,
@@ -76,25 +96,111 @@ export default function EntitySearch<T>({
 
   const selectedKeys = new Set(selected.map((s) => s.key))
 
+  const ids = parseIdentifiers(pasted)
+
+  function resolve() {
+    if (ids.length === 0) return
+    setOutcome(null)
+    resolving.run(async () => {
+      const response = await fetch('/api/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: identifierKind, ids }),
+      })
+      const body = await response.json()
+      onPaste(body.resolved ?? [])
+      setOutcome({ asked: ids, unresolved: body.unresolved ?? [] })
+      setPasted('')
+    })
+  }
+
   return (
     <div className="space-y-3">
-      <Field
-        label={label}
-        type="search"
-        value={term}
-        onChange={(e) => setTerm(e.target.value)}
-        placeholder={placeholder}
-        autoComplete="off"
-        icon={<Search />}
-      />
+      <div className="flex items-center gap-2">
+        <span className={LABEL_TEXT}>{label}</span>
+        <span className="ml-auto flex gap-1.5">
+          <ToggleChip on={!byIdentifier} onClick={() => setByIdentifier(false)}>
+            <Search className="h-3 w-3" />
+            Search
+          </ToggleChip>
+          <ToggleChip on={byIdentifier} onClick={() => setByIdentifier(true)}>
+            <ClipboardList className="h-3 w-3" />
+            Identifiers
+          </ToggleChip>
+        </span>
+      </div>
+      {byIdentifier ? (
+        <div className="space-y-2">
+          <textarea
+            value={pasted}
+            onChange={(e) => setPasted(e.target.value)}
+            onPaste={(e) => {
+              // Resolve straight off the paste rather than waiting for a blur — the
+              // clipboard text is here now, and React has not applied it yet.
+              const text = e.clipboardData.getData('text')
+              if (text.trim()) {
+                e.preventDefault()
+                setPasted(text)
+              }
+            }}
+            rows={2}
+            placeholder={identifierHint}
+            className={`${FIELD} h-auto py-2 font-mono text-[13px]`}
+          />
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={resolve}
+              disabled={ids.length === 0}
+              pending={resolving.pending}
+              pendingLabel={`Resolving ${ids.length}…`}
+            >
+              Resolve {ids.length > 0 ? ids.length : ''}
+            </Button>
+            {outcome && (
+              <span className={MUTED_XS}>
+                resolved {outcome.asked.length - outcome.unresolved.length} of{' '}
+                {outcome.asked.length}
+              </span>
+            )}
+          </div>
+          {outcome && outcome.unresolved.length > 0 && (
+            <div className={BANNER_WARN}>
+              <p className="text-paragraph-small font-bold">
+                {outcome.unresolved.length} did not resolve — counted as not covered
+              </p>
+              <p className={`mt-1 break-all font-mono ${MUTED_XS}`}>
+                {outcome.unresolved.join(', ')}
+              </p>
+              {identifierKind === 'drug' && looksLikeMedIds(outcome.asked, outcome.unresolved) && (
+                <p className="mt-2 text-paragraph-small">
+                  These look like Med IDs. Ideon only resolves drugs by RxCUI — paste the
+                  <strong> Rx RxCUI IDs</strong> column instead.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <Field
+          label=""
+          type="search"
+          value={term}
+          onChange={(e) => setTerm(e.target.value)}
+          placeholder={placeholder}
+          autoComplete="off"
+          icon={<Search />}
+        />
+      )}
 
-      {disabledReason && term.trim().length >= MIN_SEARCH_TERM && !url && (
+      {!byIdentifier && disabledReason && term.trim().length >= MIN_SEARCH_TERM && !url && (
         <p className={FAINT_XS}>{disabledReason}</p>
       )}
       {error && <p className={`text-paragraph-extra-small ${TEXT.danger}`}>{error}</p>}
       {pending && <p className={FAINT_XS}>Searching…</p>}
 
-      {hits.length > 0 && (
+      {!byIdentifier && hits.length > 0 && (
         <ul className={`max-h-56 overflow-y-auto ${DIVIDED_LIST} ${CARD}`}>
           {hits.map((hit) => {
             const key = keyOf(hit)

@@ -34,6 +34,11 @@ const ADD_CARD = `flex flex-col items-start justify-center gap-2 rounded-sm bord
 
 type ChildRow = { id: number; age: string }
 
+/** An unresolved drug has no med_id, so its rxcui is the only stable key it has. */
+function drugKey(drug: SelectedDrug): string {
+  return drug.ndc === null ? `r${drug.rxcui}` : String(drug.medId)
+}
+
 function num(form: FormData, name: string): number | undefined {
   const raw = String(form.get(name) ?? '').trim()
   if (raw === '') return undefined
@@ -313,7 +318,7 @@ export default function SearchForm({
         </div>
 
         <div className={`grid grid-cols-1 gap-4 pt-5 lg:grid-cols-2 ${DIVIDED_TOP}`}>
-          <EntitySearch<ProviderHit>
+          <EntitySearch<ProviderHit, SelectedProvider>
             label="Providers"
             placeholder="Search doctors by name…"
             buildUrl={(term) =>
@@ -337,15 +342,22 @@ export default function SearchForm({
               )
             }
             onRemove={(key) => setProviders((rows) => rows.filter((r) => String(r.npi) !== key))}
+            identifierKind="provider"
+            identifierHint="Paste NPIs — 1629059456 | 1700805082, or comma separated"
+            onPaste={(rows) =>
+              setProviders((current) =>
+                rows.reduce((acc, row) => addUnique(acc, row, (r) => String(r.npi)), current),
+              )
+            }
           />
 
-          <EntitySearch<DrugHit>
+          <EntitySearch<DrugHit, SelectedDrug>
             label="Prescriptions"
             placeholder="Search drugs by name…"
             buildUrl={(term) => `/api/drugs?q=${encodeURIComponent(term)}`}
             keyOf={(hit) => String(hit.medId)}
             renderHit={(hit) => <span className="block truncate">{hit.name}</span>}
-            selected={drugs.map((d) => ({ key: String(d.medId), label: d.name }))}
+            selected={drugs.map((d) => ({ key: drugKey(d), label: d.name }))}
             onAdd={(hit) => {
               const ndc = hit.packages[0]?.ndc
               if (!ndc) return
@@ -353,7 +365,14 @@ export default function SearchForm({
                 addUnique(rows, { medId: hit.medId, ndc, name: hit.name }, (r) => String(r.medId)),
               )
             }}
-            onRemove={(key) => setDrugs((rows) => rows.filter((r) => String(r.medId) !== key))}
+            onRemove={(key) => setDrugs((rows) => rows.filter((r) => drugKey(r) !== key))}
+            identifierKind="drug"
+            identifierHint="Paste RxCUIs — 748961 | 866083, or comma separated"
+            onPaste={(rows) =>
+              setDrugs((current) =>
+                rows.reduce((acc, row) => addUnique(acc, row, drugKey), current),
+              )
+            }
           />
         </div>
 

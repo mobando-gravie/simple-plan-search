@@ -148,7 +148,11 @@ export default function PlanDetailsModal({
                       ) : (
                         <span className={MUTED}>Not covered</span>
                       )}
-                      <span className={`block ${MUTED_XS}`}>{formatTier(cover?.tier ?? null)}</span>
+                      <span className={`block ${MUTED_XS}`}>
+                        {drug.ndc === null
+                          ? 'identifier did not resolve'
+                          : formatTier(cover?.tier ?? null)}
+                      </span>
                     </span>
                   </li>
                 )

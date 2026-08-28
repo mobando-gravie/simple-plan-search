@@ -24,10 +24,17 @@ function config() {
   return { apiKey, baseUrl: baseUrl.replace(/\/$/, '') }
 }
 
+/** Ideon answers a burst with 429 and a Retry-After in seconds. */
+const RATE_LIMIT_RETRIES = 2
+const MAX_RETRY_WAIT_MS = 15_000
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 async function call<T>(
   path: string,
   version: string,
   init: { method: 'GET' | 'POST'; body?: unknown },
+  attempt = 0,
 ): Promise<T> {
   const { apiKey, baseUrl } = config()
   const response = await fetch(`${baseUrl}${path}`, {
@@ -44,11 +51,21 @@ async function call<T>(
     cache: 'no-store',
   })
 
+  if (response.status === 429 && attempt < RATE_LIMIT_RETRIES) {
+    const after = Number(response.headers.get('retry-after')) || 1
+    await sleep(Math.min(after * 1000, MAX_RETRY_WAIT_MS))
+    return call<T>(path, version, init, attempt + 1)
+  }
+
   if (!response.ok) {
     const detail = (await response.text()).slice(0, 500)
     throw new Error(`Ideon ${init.method} ${path} → ${response.status}: ${detail}`)
   }
   return (await response.json()) as T
+}
+
+function packageIds(input: PlanSearchInput): string[] {
+  return (input.drugs ?? []).map((d) => d.ndc).filter((ndc): ndc is string => !!ndc)
 }
 
 /** The exact body Ideon expects. Also the canonical form the cache key hashes. */
@@ -65,7 +82,9 @@ export function planSearchBody(input: PlanSearchInput): Record<string, unknown> 
     ...(input.householdIncome !== undefined ? { household_income: input.householdIncome } : {}),
     ...(input.householdSize !== undefined ? { household_size: input.householdSize } : {}),
     ...(input.providers?.length ? { providers: input.providers.map((p) => ({ npi: p.npi })) } : {}),
-    ...(input.drugs?.length ? { drug_packages: input.drugs.map((d) => ({ id: d.ndc })) } : {}),
+    // An unresolved paste carries a null NDC — there is nothing to ask Ideon about,
+    // so it is dropped here and counted as not covered at the display layer instead.
+    ...(packageIds(input).length ? { drug_packages: packageIds(input).map((id) => ({ id })) } : {}),
   }
 }
 
@@ -121,6 +140,60 @@ export async function searchDrugs(term: string, limit = 15): Promise<DrugHit[]> 
     if (hits.length >= limit) break
   }
   return hits
+}
+
+/** 404 is a real answer here — the identifier simply is not one Ideon knows. */
+async function callOrNull<T>(path: string, version: string): Promise<T | null> {
+  try {
+    return await call<T>(path, version, { method: 'GET' })
+  } catch (e) {
+    if (e instanceof Error && / → 404: /.test(e.message)) return null
+    throw e
+  }
+}
+
+/**
+ * The only drug lookup Ideon offers by identifier. `/drugs/{med_id}` does not exist
+ * and `/drugs` without a term 422s naming rx_cui — so a pasted med_id is unresolvable.
+ */
+export async function fetchDrugByRxcui(rxcui: number): Promise<DrugHit | null> {
+  const body = await callOrNull<DrugsResponse>(
+    `/drugs?rx_cui=${encodeURIComponent(String(rxcui))}&require_formulary=true`,
+    COVERAGE_VERSION,
+  )
+  const drug = body?.drugs?.[0]
+  if (!drug || typeof drug.med_id !== 'number' || !drug.name) return null
+  return {
+    medId: drug.med_id,
+    name: drug.name,
+    packages: (drug.drug_packages ?? [])
+      .filter((pkg): pkg is { id: string } => typeof pkg.id === 'string')
+      .map((pkg) => ({ ndc: pkg.id, label: drug.name as string })),
+  }
+}
+
+type ProviderByIdResponse = {
+  provider?: {
+    id?: number
+    presentation_name?: string | null
+    specialty?: string | null
+    type?: string | null
+    city?: string | null
+  }
+}
+
+/** Unlike the search, this needs no zip — the NPI is globally unique. */
+export async function fetchProviderByNpi(npi: number): Promise<ProviderHit | null> {
+  const body = await callOrNull<ProviderByIdResponse>(`/providers/${npi}`, COVERAGE_VERSION)
+  const p = body?.provider
+  if (!p?.presentation_name) return null
+  return {
+    npi: p.id ?? npi,
+    name: p.presentation_name,
+    specialty: p.specialty ?? null,
+    type: p.type ?? null,
+    city: p.city ?? null,
+  }
 }
 
 type ProvidersResponse = {

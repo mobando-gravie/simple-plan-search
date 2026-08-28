@@ -89,6 +89,7 @@ export default function PlanList({
   drugs?: SelectedDrug[]
 }) {
   const openPlan = allPlans.find((p) => p.hiosPlanId === openPlanId) ?? null
+  const unresolvedDrugs = drugs.filter((d) => d.ndc === null).length
 
   const hasAllowance = allowanceCents > 0
   // Rendered in both branches: a shared link can name a plan the filters it carries
@@ -114,6 +115,9 @@ export default function PlanList({
           const planDrugs = plan.coverage.drugs
           const inNetwork = providers.filter((p) => p.inNetwork).length
           const covered = planDrugs.filter((d) => d.covered).length
+          // An unresolved identifier was never sent to Ideon, so it has no coverage
+          // row. Counting it in the denominator keeps the chip from overstating.
+          const drugTotal = planDrugs.length + unresolvedDrugs
           const easyEnroll = plan.enrollmentType === 'EASY_ENROLL'
           const sbc = sbcUrl(plan.documents)
 
@@ -171,10 +175,10 @@ export default function PlanList({
                       </Chip>
                     </Tip>
                   )}
-                  {planDrugs.length > 0 && (
+                  {drugTotal > 0 && (
                     <Tip copy={TOOLTIP_COPY.prescriptions}>
-                      <Chip tone={TONE_BY_MATCH[coverageMatch(covered, planDrugs.length)]}>
-                        Prescriptions {covered} of {planDrugs.length}
+                      <Chip tone={TONE_BY_MATCH[coverageMatch(covered, drugTotal)]}>
+                        Prescriptions {covered} of {drugTotal}
                       </Chip>
                     </Tip>
                   )}

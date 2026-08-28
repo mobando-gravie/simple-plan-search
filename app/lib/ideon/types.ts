@@ -3,7 +3,14 @@
 export type Applicant = { age: number; smoker: boolean; child: boolean }
 
 export type SelectedProvider = { npi: number; name: string }
-export type SelectedDrug = { medId: number; ndc: string; name: string }
+export type SelectedDrug = {
+  medId: number
+  /** null when a pasted RxCUI did not resolve — no package, so it cannot be asked about. */
+  ndc: string | null
+  name: string
+  /** Set when the drug arrived as a pasted identifier rather than from the typeahead. */
+  rxcui?: number
+}
 
 export type PlanSearchInput = {
   zipCode: string

@@ -58,9 +58,14 @@ ALTER TABLE sps_gravie_modifier ADD COLUMN IF NOT EXISTS enrollment_type TEXT;
 -- Display-only names for ids that travel in a shared URL. A miss is cosmetic:
 -- the NPI and NDC are load-bearing and live in the URL itself.
 CREATE TABLE IF NOT EXISTS sps_entity_label (
-  kind      TEXT        NOT NULL,   -- 'drug' | 'provider'
-  entity_id TEXT        NOT NULL,   -- med_id or NPI, as text
+  kind      TEXT        NOT NULL,   -- 'drug' | 'drug_rxcui' | 'provider'
+  entity_id TEXT        NOT NULL,   -- med_id, rxcui or NPI, as text
   label     TEXT        NOT NULL,
   seen_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (kind, entity_id)
 );
+
+-- The label alone cannot rebuild a selection: a drug needs its NDC to be asked
+-- about at all. `drug_rxcui` is a separate kind rather than a re-key, so a med_id
+-- and an rxcui that happen to share an integer cannot collide.
+ALTER TABLE sps_entity_label ADD COLUMN IF NOT EXISTS payload JSONB;
