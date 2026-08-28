@@ -12,6 +12,10 @@ next-env.d.ts
 .DS_Store
 npm-debug.log*
 
+# Private session notes. Also keeps Tailwind's scanner out — it honours this file,
+# not the global excludesfile, and would otherwise compile class names quoted in them.
+mytasks/
+
 # Local comparison / import scratch
 /tmp-compare/
 *.local.csv

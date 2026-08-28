@@ -1,57 +1,68 @@
+import { Trash2 } from 'lucide-react'
 import { activateBatch, removeBatch } from '@/app/actions/modifiers'
 import type { ModifierBatch } from '@/app/lib/services/modifierService'
+import { BTN_TEXT, CHIP, TABLE_WRAP, TBODY, TD, TH, TH_RIGHT, THEAD, TR } from '@/app/ui/theme'
 
 export default function BatchList({ batches }: { batches: ModifierBatch[] }) {
   if (batches.length === 0) {
-    return <p className="text-sm text-zinc-500">No modifier batches imported yet.</p>
+    return (
+      <p className="text-paragraph-small text-brown-gravie-50">
+        No modifier batches imported yet.
+      </p>
+    )
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-      <table className="w-full text-sm">
-        <thead className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className={TABLE_WRAP}>
+      <table className="w-full">
+        <thead className={THEAD}>
           <tr>
-            <th className="px-4 py-3 text-left font-medium">Batch</th>
-            <th className="px-4 py-3 text-left font-medium">File</th>
-            <th className="px-4 py-3 text-right font-medium">Rows</th>
-            <th className="px-4 py-3 text-left font-medium">Uploaded</th>
-            <th className="px-4 py-3 text-left font-medium">Status</th>
-            <th className="px-4 py-3" />
+            <th className={TH}>Batch</th>
+            <th className={TH}>File</th>
+            <th className={TH_RIGHT}>Rows</th>
+            <th className={TH}>Uploaded</th>
+            <th className={TH}>Status</th>
+            <th className={TH} />
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/70">
+        <tbody className={TBODY}>
           {batches.map((batch) => (
-            <tr key={batch.id}>
-              <td className="tnum px-4 py-3 font-mono text-xs">#{batch.id}</td>
-              <td className="px-4 py-3">
-                {batch.filename}
-                {batch.note && <div className="text-xs text-zinc-500">{batch.note}</div>}
+            <tr key={batch.id} className={TR}>
+              <td className={`tnum ${TD} font-mono text-paragraph-extra-small`}>#{batch.id}</td>
+              <td className={TD}>
+                <span className="font-bold text-ink-60">{batch.filename}</span>
+                {batch.note && (
+                  <div className="text-paragraph-extra-small text-brown-gravie-50">{batch.note}</div>
+                )}
               </td>
-              <td className="tnum px-4 py-3 text-right">{batch.rowCount}</td>
-              <td className="px-4 py-3 text-zinc-500">
+              <td className={`tnum ${TD} text-right`}>{batch.rowCount}</td>
+              <td className={`${TD} text-brown-gravie-50`}>
                 {batch.uploadedAt.toISOString().replace('T', ' ').slice(0, 16)}
               </td>
-              <td className="px-4 py-3">
+              <td className={TD}>
                 {batch.active ? (
-                  <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  <span
+                    className={`${CHIP} border-secondary-green-60 bg-secondary-green-10 text-secondary-green-70`}
+                  >
                     active
                   </span>
                 ) : (
-                  <span className="text-xs text-zinc-400">inactive</span>
+                  <span className="text-paragraph-extra-small text-brown-gravie-30">inactive</span>
                 )}
               </td>
-              <td className="px-4 py-3">
-                <div className="flex justify-end gap-3">
+              <td className={TD}>
+                <div className="flex items-center justify-end gap-2">
                   <form action={activateBatch}>
                     <input type="hidden" name="batchId" value={batch.id} />
                     <input type="hidden" name="active" value={String(!batch.active)} />
-                    <button className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
-                      {batch.active ? 'Deactivate' : 'Activate'}
-                    </button>
+                    <button className={BTN_TEXT}>{batch.active ? 'Deactivate' : 'Activate'}</button>
                   </form>
                   <form action={removeBatch}>
                     <input type="hidden" name="batchId" value={batch.id} />
-                    <button className="text-xs text-zinc-400 hover:text-red-600">Delete</button>
+                    <button className="inline-flex items-center gap-1 rounded-xs px-2 py-[6px] text-paragraph-extra-small font-bold text-brown-gravie-50 transition-colors hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
                   </form>
                 </div>
               </td>

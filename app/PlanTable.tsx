@@ -1,25 +1,25 @@
+import { Check } from 'lucide-react'
 import { formatCents, formatCentsDelta } from '@/app/lib/money'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
+import { CHIP, TABLE_WRAP, TBODY, TD, TH, TH_RIGHT, THEAD, TR } from '@/app/ui/theme'
 
+// member-frontend renders every chip in one flat gray because it shows a single
+// plan at a time. A 50-row comparison table earns per-tier color, so each tier
+// takes the brand's variant-chip formula: tint, text and border from one family.
 const METAL_STYLES: Record<string, string> = {
-  bronze: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-  expanded_bronze: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-  silver: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
-  gold: 'bg-yellow-50 text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-300',
-  platinum: 'bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300',
-  catastrophic: 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300',
+  bronze: 'bg-marketplace-orange-20 text-marketplace-orange-70 border-marketplace-orange-30',
+  expanded_bronze:
+    'bg-marketplace-orange-20 text-marketplace-orange-70 border-marketplace-orange-30',
+  silver: 'bg-ink-10 text-ink-50 border-ink-15',
+  gold: 'bg-brown-gravie-10 text-brown-gravie-50 border-brown-gravie-20',
+  platinum: 'bg-secondary-green-10 text-secondary-green-70 border-secondary-green-60',
+  catastrophic: 'bg-destructive/10 text-destructive border-destructive/30',
 }
 
 function MetalBadge({ level }: { level: string | null }) {
-  if (!level) return <span className="text-zinc-400">—</span>
-  const style = METAL_STYLES[level] ?? 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800'
-  return (
-    <span
-      className={`inline-block whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium capitalize ${style}`}
-    >
-      {level.replace('_', ' ')}
-    </span>
-  )
+  if (!level) return <span className="text-brown-gravie-30">—</span>
+  const style = METAL_STYLES[level] ?? 'bg-ink-10 text-ink-50 border-ink-15'
+  return <span className={`${CHIP} capitalize ${style}`}>{level.replace('_', ' ')}</span>
 }
 
 function modifierSummary(plan: PricedPlan): string {
@@ -38,7 +38,7 @@ export default function PlanTable({
   householdSize: number
 }) {
   if (plans.length === 0) {
-    return <p className="text-sm text-zinc-500">No plans matched this search.</p>
+    return <p className="text-paragraph-small text-brown-gravie-50">No plans matched this search.</p>
   }
 
   const family = householdSize > 1
@@ -49,58 +49,63 @@ export default function PlanTable({
     family ? p.outOfPocketMaxFamilyCents : p.outOfPocketMaxIndividualCents
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-      <table className="w-full text-sm">
-        <thead className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+    <div className={TABLE_WRAP}>
+      <table className="w-full">
+        <thead className={THEAD}>
           <tr>
-            <th className="px-4 py-3 text-left font-medium">Plan</th>
-            <th className="px-4 py-3 text-left font-medium">Metal</th>
-            <th className="px-4 py-3 text-right font-medium">Ideon</th>
-            <th className="px-4 py-3 text-left font-medium">Modifier</th>
-            <th className="px-4 py-3 text-right font-medium">Gravie premium</th>
-            <th className="px-4 py-3 text-right font-medium">Deductible ({costShareLabel})</th>
-            <th className="px-4 py-3 text-right font-medium">OOP max ({costShareLabel})</th>
+            <th className={TH}>Plan</th>
+            <th className={TH}>Metal</th>
+            <th className={TH_RIGHT}>Ideon</th>
+            <th className={TH}>Modifier</th>
+            <th className={TH_RIGHT}>Gravie premium</th>
+            <th className={TH_RIGHT}>Deductible ({costShareLabel})</th>
+            <th className={TH_RIGHT}>OOP max ({costShareLabel})</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/70">
+        <tbody className={TBODY}>
           {plans.map((plan) => (
-            <tr key={plan.hiosPlanId} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/60">
-              <td className="max-w-md px-4 py-3">
-                <div className="truncate font-medium" title={plan.planName}>
+            <tr key={plan.hiosPlanId} className={TR}>
+              <td className={`${TD} max-w-md`}>
+                <div className="truncate font-bold text-ink-60" title={plan.planName}>
                   {plan.planName}
                 </div>
-                <div className="mt-0.5 flex gap-2 text-xs text-zinc-500">
+                <div className="mt-0.5 flex items-center gap-2 text-paragraph-extra-small text-brown-gravie-50">
                   <span>{plan.carrierName}</span>
                   <span className="font-mono">{plan.hiosPlanId}</span>
                   {plan.planType && <span>{plan.planType}</span>}
-                  {plan.hsaEligible && <span className="text-emerald-600">HSA</span>}
+                  {plan.hsaEligible && (
+                    <span className="inline-flex items-center gap-0.5 font-bold text-secondary-green-70">
+                      <Check className="h-3 w-3" />
+                      HSA
+                    </span>
+                  )}
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className={TD}>
                 <MetalBadge level={plan.metalLevel} />
               </td>
-              <td className="tnum px-4 py-3 text-right text-zinc-500">
+              <td className={`tnum ${TD} text-right text-brown-gravie-50`}>
                 {formatCents(plan.ideonPremiumCents)}
               </td>
-              <td className="px-4 py-3">
+              <td className={TD}>
                 <span
                   className={
                     plan.modifierId === null
-                      ? 'text-xs text-zinc-400'
-                      : 'tnum text-xs text-zinc-700 dark:text-zinc-300'
+                      ? 'text-paragraph-extra-small text-brown-gravie-30'
+                      : 'tnum text-paragraph-extra-small font-bold text-brown-gravie-50'
                   }
                   title={plan.modifierLabel ?? undefined}
                 >
                   {modifierSummary(plan)}
                 </span>
               </td>
-              <td className="tnum px-4 py-3 text-right font-medium">
+              <td className={`tnum ${TD} text-right font-extrabold text-ink-60`}>
                 {formatCents(plan.finalPremiumCents)}
               </td>
-              <td className="tnum px-4 py-3 text-right text-zinc-500">
+              <td className={`tnum ${TD} text-right text-brown-gravie-50`}>
                 {formatCents(deductibleOf(plan))}
               </td>
-              <td className="tnum px-4 py-3 text-right text-zinc-500">
+              <td className={`tnum ${TD} text-right text-brown-gravie-50`}>
                 {formatCents(oopMaxOf(plan))}
               </td>
             </tr>

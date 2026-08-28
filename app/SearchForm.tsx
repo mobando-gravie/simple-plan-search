@@ -1,11 +1,18 @@
 'use client'
+import { RotateCw, Search } from 'lucide-react'
 import { useActionState, useRef } from 'react'
 import { runSearch, type SearchState } from '@/app/actions/search'
 import PlanTable from '@/app/PlanTable'
-
-const FIELD =
-  'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400'
-const LABEL = 'mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400'
+import {
+  BANNER_ERROR,
+  BTN_OUTLINE,
+  BTN_SOLID,
+  CHECKBOX,
+  FIELD,
+  HINT,
+  LABEL,
+  PANEL,
+} from '@/app/ui/theme'
 
 function Field({
   label,
@@ -17,7 +24,7 @@ function Field({
     <label className="block">
       <span className={LABEL}>{label}</span>
       <input name={name} className={FIELD} {...input} />
-      {hint && <span className="mt-1 block text-xs text-zinc-400">{hint}</span>}
+      {hint && <span className={HINT}>{hint}</span>}
     </label>
   )
 }
@@ -35,7 +42,7 @@ export default function SearchForm() {
 
   return (
     <div className="space-y-8">
-      <form ref={formRef} action={action} className="space-y-5">
+      <form ref={formRef} action={action} className={`${PANEL} space-y-5`}>
         <input ref={refreshRef} type="hidden" name="refresh" value="false" />
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -48,51 +55,45 @@ export default function SearchForm() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-            <input type="checkbox" name="smoker" className="rounded border-zinc-300" />
+          <label className="flex items-center gap-2 text-paragraph-small text-ink-50">
+            <input type="checkbox" name="smoker" className={CHECKBOX} />
             Primary applicant uses tobacco
           </label>
-          <label className="flex items-center gap-2 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-300">
+          <label className="flex items-center gap-2 whitespace-nowrap text-paragraph-small text-ink-50">
             Enrollment date
             <input type="date" name="enrollmentDate" className={`${FIELD} w-auto`} />
           </label>
 
           <div className="ml-auto flex gap-2">
-            <button
-              type="button"
-              onClick={refresh}
-              disabled={pending}
-              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
-            >
+            <button type="button" onClick={refresh} disabled={pending} className={BTN_OUTLINE}>
+              <RotateCw />
               Refresh from Ideon
             </button>
             <button
               type="submit"
               disabled={pending}
               onClick={() => refreshRef.current && (refreshRef.current.value = 'false')}
-              className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className={`${BTN_SOLID} px-6`}
             >
+              <Search />
               {pending ? 'Searching…' : 'Search'}
             </button>
           </div>
         </div>
       </form>
 
-      {state?.error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-          {state.error}
-        </p>
-      )}
+      {state?.error && <p className={BANNER_ERROR}>{state.error}</p>}
 
       {state?.plans && state.meta && state.cache && (
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-zinc-500">
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-paragraph-small text-brown-gravie-50">
             <span>
-              <strong className="text-zinc-900 dark:text-zinc-100">{state.meta.total}</strong> plans
-              in {state.meta.countyName ?? state.meta.fipsCode}, {state.meta.state}
+              <strong className="font-bold text-ink-60">{state.meta.total}</strong> plans in{' '}
+              {state.meta.countyName ?? state.meta.fipsCode}, {state.meta.state}
             </span>
             <span>
-              {state.meta.modifiersApplied} of {state.plans.length} carry a Gravie modifier
+              <strong className="font-bold text-ink-60">{state.meta.modifiersApplied}</strong> of{' '}
+              {state.plans.length} carry a Gravie modifier
             </span>
             <span>
               {state.cache.hit
