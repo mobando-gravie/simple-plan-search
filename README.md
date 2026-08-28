@@ -85,6 +85,10 @@ side has orphan plans, `1` otherwise, so it drops into CI unchanged.
 
 ## Caching
 
+A search pulls 200 plans by default. Ideon caps a page at 50 however large
+`per_page` is, so the service walks pages until it has enough or the result set
+runs out, and caches the merged response.
+
 An Ideon plan search is cached in `sps_plan_search_cache`, keyed by the sha256 of
 the canonicalized request body, and served for `PLAN_CACHE_TTL_SECONDS` (default
 24 h). **Refresh from Ideon** on the search page and `--refresh` on the CLI both

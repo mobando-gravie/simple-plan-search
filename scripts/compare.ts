@@ -26,7 +26,7 @@ SEARCH
   --income <n>                 household income
   --enrollment-date <date>     YYYY-MM-DD
   --market <individual|small_group>
-  --limit <n>                  plans per page (default 100)
+  --limit <n>                  how many plans to pull (default 200)
   --refresh                    bypass the 24h cache and re-fetch from Ideon
 
 BASELINE (one required)
@@ -101,7 +101,7 @@ const criteria: SearchCriteria = {
   householdIncome: has('income') ? Number(first('income')) : undefined,
   enrollmentDate: first('enrollment-date'),
   market: (first('market') as SearchCriteria['market']) ?? 'individual',
-  perPage: Number(first('limit') ?? 100),
+  perPage: Number(first('limit') ?? 200),
 }
 
 async function loadBaseline(): Promise<FetchPlansResponse> {

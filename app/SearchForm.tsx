@@ -8,6 +8,7 @@ import {
   BANNER_ERROR,
   BTN_OUTLINE,
   BTN_SOLID,
+  BTN_TEXT,
   CHECKBOX,
   FIELD,
   HINT,
@@ -21,6 +22,8 @@ const MAX_CHILDREN = 10
 /** One card per person. Identity comes from the field label, not a separate title. */
 const PERSON_CARD =
   'rounded-sm border border-brown-gravie-20 bg-brown-gravie-5 p-4 shadow-elevation-1'
+const ADD_CARD =
+  'flex flex-col items-start justify-center gap-2 rounded-sm border border-dashed border-brown-gravie-20 p-4'
 // FIELD is w-full; appending w-24 loses to it, so swap the class out.
 const AGE_FIELD = FIELD.replace('w-full', 'w-24')
 
@@ -91,7 +94,7 @@ export default function SearchForm() {
       <form ref={formRef} action={action} className={`${PANEL} space-y-6`}>
         <input ref={refreshRef} type="hidden" name="refresh" value="false" />
 
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field
             label="ZIP code"
             name="zipCode"
@@ -117,36 +120,6 @@ export default function SearchForm() {
               defaultValue={submitted?.enrollmentDate ?? ''}
             />
           </label>
-          <Field
-            label="Plans per page"
-            name="perPage"
-            inputMode="numeric"
-            defaultValue={submitted?.perPage ?? 50}
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {!spouse && (
-            <button type="button" onClick={() => setSpouse({ age: '' })} className={BTN_OUTLINE}>
-              <Plus />
-              Add spouse
-            </button>
-          )}
-          {children.length < MAX_CHILDREN && (
-            <button
-              type="button"
-              onClick={() =>
-                setChildren((rows) => [
-                  ...rows,
-                  { id: Math.max(0, ...rows.map((r) => r.id)) + 1, age: '' },
-                ])
-              }
-              className={BTN_OUTLINE}
-            >
-              <Plus />
-              Add child
-            </button>
-          )}
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -230,6 +203,30 @@ export default function SearchForm() {
               </div>
             </div>
           ))}
+
+          <div className={ADD_CARD}>
+            {!spouse && (
+              <button type="button" onClick={() => setSpouse({ age: '' })} className={BTN_TEXT}>
+                <Plus />
+                Add spouse
+              </button>
+            )}
+            {children.length < MAX_CHILDREN && (
+              <button
+                type="button"
+                onClick={() =>
+                  setChildren((rows) => [
+                    ...rows,
+                    { id: Math.max(0, ...rows.map((r) => r.id)) + 1, age: '' },
+                  ])
+                }
+                className={BTN_TEXT}
+              >
+                <Plus />
+                Add child
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 border-t border-brown-gravie-20 pt-5">

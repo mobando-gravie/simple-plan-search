@@ -71,7 +71,6 @@ export async function runSearch(_state: SearchState, formData: FormData): Promis
     household,
     householdIncome: optionalNumber(formData.get('householdIncome')),
     enrollmentDate: String(formData.get('enrollmentDate') ?? '').trim() || undefined,
-    perPage: optionalNumber(formData.get('perPage')) ?? 50,
   }
 
   try {

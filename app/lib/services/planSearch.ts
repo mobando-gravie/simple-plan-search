@@ -9,6 +9,9 @@ import { findZipCounty, saveZipCounty } from '../repos/zipCountyRepo'
 
 const DEFAULT_TTL_SECONDS = 86_400
 
+/** Ideon caps a page at 50 however large per_page is, so more than that means paging. */
+const IDEON_PAGE_SIZE = 50
+
 function ttlSeconds(): number {
   const raw = Number(process.env.PLAN_CACHE_TTL_SECONDS)
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_TTL_SECONDS
@@ -48,7 +51,7 @@ export type SearchResult = {
 export const DEFAULT_CRITERIA: SearchCriteria = {
   zipCode: '',
   household: DEFAULT_HOUSEHOLD,
-  perPage: 50,
+  perPage: 200,
   page: 1,
   sort: 'premium:asc',
   market: 'individual',
@@ -87,6 +90,29 @@ function priceWith(modifiers: GravieModifier[], plan: MappedPlan, state: string)
   }
 }
 
+/**
+ * Walks Ideon's pages until `wanted` plans are collected or the result set runs
+ * out. `meta` comes from the first page — it describes the whole result set, not
+ * the slice.
+ */
+async function fetchPlans(
+  input: PlanSearchInput,
+  wanted: number,
+): Promise<IdeonPlanSearchResponse> {
+  const plans: IdeonPlanSearchResponse['plans'] = []
+  let meta: IdeonPlanSearchResponse['meta'] = {}
+
+  for (let page = 1; plans.length < wanted; page++) {
+    const body = await ideonSearchPlans({ ...input, page, perPage: IDEON_PAGE_SIZE })
+    if (page === 1) meta = body.meta ?? {}
+    const batch = body.plans ?? []
+    plans.push(...batch)
+    if (batch.length < IDEON_PAGE_SIZE) break
+  }
+
+  return { plans: plans.slice(0, wanted), meta }
+}
+
 export async function searchPlans(
   criteria: SearchCriteria,
   opts: { refresh?: boolean } = {},
@@ -122,7 +148,7 @@ export async function searchPlans(
     fetchedAt = cached.fetchedAt
     hit = true
   } else {
-    response = await ideonSearchPlans(input)
+    response = await fetchPlans(input, criteria.perPage)
     fetchedAt = new Date()
     hit = false
     await upsertCached({
