@@ -34,6 +34,11 @@ export default function SearchForm() {
   const formRef = useRef<HTMLFormElement>(null)
   const refreshRef = useRef<HTMLInputElement>(null)
 
+  // React resets a form once its action resolves, restoring every field to its
+  // defaultValue — so the defaults have to echo what was just submitted, or the
+  // criteria vanish and Refresh can no longer resubmit them.
+  const submitted = state?.criteria
+
   function refresh() {
     if (!refreshRef.current || !formRef.current) return
     refreshRef.current.value = 'true'
@@ -46,22 +51,68 @@ export default function SearchForm() {
         <input ref={refreshRef} type="hidden" name="refresh" value="false" />
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          <Field label="ZIP code" name="zipCode" placeholder="11201" inputMode="numeric" required />
-          <Field label="Adult ages" name="adultAges" placeholder="35" defaultValue="35" hint="comma separated" />
-          <Field label="Child ages" name="childAges" placeholder="4,7" hint="optional" />
-          <Field label="Household income" name="householdIncome" placeholder="80000" inputMode="numeric" />
-          <Field label="Household size" name="householdSize" placeholder="4" inputMode="numeric" />
-          <Field label="Plans per page" name="perPage" defaultValue="50" inputMode="numeric" />
+          <Field
+            label="ZIP code"
+            name="zipCode"
+            placeholder="11201"
+            inputMode="numeric"
+            required
+            defaultValue={submitted?.zipCode ?? ''}
+          />
+          <Field
+            label="Adult ages"
+            name="adultAges"
+            placeholder="35"
+            hint="comma separated"
+            defaultValue={submitted ? submitted.adultAges.join(',') : '35'}
+          />
+          <Field
+            label="Child ages"
+            name="childAges"
+            placeholder="4,7"
+            hint="optional"
+            defaultValue={submitted?.childAges.join(',') ?? ''}
+          />
+          <Field
+            label="Household income"
+            name="householdIncome"
+            placeholder="80000"
+            inputMode="numeric"
+            defaultValue={submitted?.householdIncome ?? ''}
+          />
+          <Field
+            label="Household size"
+            name="householdSize"
+            placeholder="4"
+            inputMode="numeric"
+            defaultValue={submitted?.householdSize ?? ''}
+          />
+          <Field
+            label="Plans per page"
+            name="perPage"
+            inputMode="numeric"
+            defaultValue={submitted?.perPage ?? 50}
+          />
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 text-paragraph-small text-ink-50">
-            <input type="checkbox" name="smoker" className={CHECKBOX} />
+            <input
+              type="checkbox"
+              name="smoker"
+              className={CHECKBOX}
+              defaultChecked={submitted?.smoker ?? false}
+            />
             Primary applicant uses tobacco
           </label>
           <label className="flex items-center gap-2 whitespace-nowrap text-paragraph-small text-ink-50">
             Enrollment date
-            <input type="date" name="enrollmentDate" className={`${FIELD} w-auto`} />
+            <input
+              type="date"
+              name="enrollmentDate"
+              className={`${FIELD} w-auto`}
+              defaultValue={submitted?.enrollmentDate ?? ''}
+            />
           </label>
 
           <div className="ml-auto flex gap-2">
