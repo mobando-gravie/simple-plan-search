@@ -29,8 +29,8 @@ const MATCH_STYLES: Record<CoverageMatch, string> = {
 }
 
 const STAT_LABEL = 'flex items-center gap-1 text-header-h5 uppercase text-brown-gravie-50'
-const STAT_VALUE = 'tnum mt-2 text-header-h2 text-ink-60'
-const STAT_SUB = 'tnum mt-1 text-paragraph-small text-brown-gravie-50 underline'
+const STAT_VALUE = 'tnum mt-2 whitespace-nowrap text-header-h2 text-ink-60'
+const STAT_SUB = 'tnum mt-1 whitespace-nowrap text-paragraph-small text-brown-gravie-50 underline'
 
 function Stat({
   label,
@@ -109,7 +109,7 @@ export default function PlanList({
                     height={32}
                     unoptimized
                     style={{ width: 'auto', height: '2rem', maxWidth: '100px' }}
-                    className="shrink-0 object-contain"
+                    className="shrink-0 object-contain grayscale"
                   />
                 ) : (
                   <span className="shrink-0 text-paragraph-small text-brown-gravie-50">
@@ -117,18 +117,9 @@ export default function PlanList({
                   </span>
                 )}
                 <h3 className="min-w-0 flex-1 text-header-h4 text-ink-60">{plan.planName}</h3>
-                {plan.offMarket && (
-                  <span
-                    className="flex shrink-0 items-center gap-1 text-paragraph-small text-brown-gravie-50"
-                    title="Off-exchange premiums are generally paid pre-tax."
-                  >
-                    You may save on taxes!
-                    <Info className="h-3.5 w-3.5" />
-                  </span>
-                )}
               </div>
 
-              <div className="grid grid-cols-1 items-start gap-4 p-5 lg:grid-cols-[minmax(11rem,auto)_1fr_1fr_1fr_auto] lg:gap-0">
+              <div className="grid grid-cols-1 items-start gap-4 p-5 lg:grid-cols-[12rem_1fr_1fr_1fr_auto] lg:gap-0">
                 <div className="flex flex-wrap gap-1.5 lg:pr-5">
                   <span
                     className={`${CHIP} ${
