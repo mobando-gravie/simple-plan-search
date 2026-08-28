@@ -29,10 +29,10 @@ export const HINT = 'mt-1 block text-paragraph-extra-small text-brown-gravie-50'
 
 export const CHECKBOX = 'h-4 w-4 rounded-xs border-ink-30 accent-marketplace-orange-60'
 
-/** Flat dashboard surface — forms, disclosures, anything that holds controls. */
-export const PANEL = 'rounded-lg bg-white p-6'
+/** Surfaces carry elevation rather than a border — see CARD. */
+export const PANEL = 'rounded-sm bg-white p-6 shadow-elevation-1'
 
-/** Plan-flow surface — results and the login card. Elevation, no border. */
+/** The house surface: elevation instead of a border, on the warm page ground. */
 export const CARD = 'rounded-sm bg-white shadow-elevation-1'
 
 export const TABLE_WRAP = `overflow-x-auto ${CARD}`

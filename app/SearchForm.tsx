@@ -23,7 +23,7 @@ const MAX_CHILDREN = 10
 
 /** One card per person. Identity comes from the field label, not a separate title. */
 const PERSON_CARD =
-  'rounded-sm border border-brown-gravie-20 bg-brown-gravie-5 p-4 shadow-elevation-1'
+  'rounded-sm bg-brown-gravie-5 p-4 shadow-elevation-1'
 const ADD_CARD =
   'flex flex-col items-start justify-center gap-2 rounded-sm border border-dashed border-brown-gravie-20 p-4'
 // FIELD is w-full; appending w-24 loses to it, so swap the class out.

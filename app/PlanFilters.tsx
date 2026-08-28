@@ -7,7 +7,7 @@ import {
   type SortKey,
 } from '@/app/lib/planFilter'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
-import { BTN_TEXT, CHECKBOX, FIELD, HINT, LABEL } from '@/app/ui/theme'
+import { BTN_TEXT, CARD, CHECKBOX, FIELD, HINT, LABEL } from '@/app/ui/theme'
 
 const SORTS: { value: SortKey; label: string }[] = [
   { value: 'premium-asc', label: 'Premium, low to high' },
@@ -91,7 +91,7 @@ export default function PlanFilters({
   const isDefault = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS)
 
   return (
-    <div className="space-y-4 rounded-sm border border-brown-gravie-20 bg-brown-gravie-5 p-4">
+    <div className={`space-y-4 p-4 ${CARD}`}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block">
           <span className={LABEL}>Search</span>

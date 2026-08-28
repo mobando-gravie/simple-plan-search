@@ -98,7 +98,7 @@ export default function EntitySearch<T>({
       {pending && <p className="text-paragraph-extra-small text-brown-gravie-30">Searching…</p>}
 
       {hits.length > 0 && (
-        <ul className="max-h-56 divide-y divide-brown-gravie-20 overflow-y-auto rounded-xs border border-brown-gravie-20 bg-white">
+        <ul className="max-h-56 divide-y divide-brown-gravie-20 overflow-y-auto rounded-sm bg-white shadow-elevation-1">
           {hits.map((hit) => {
             const key = keyOf(hit)
             const already = selectedKeys.has(key)
