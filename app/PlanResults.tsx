@@ -1,4 +1,5 @@
 'use client'
+import * as Tooltip from '@radix-ui/react-tooltip'
 import { useMemo, useState } from 'react'
 import { applyPlanFilters, DEFAULT_FILTERS, type PlanFilterState } from '@/app/lib/planFilter'
 import type { SelectedDrug } from '@/app/lib/ideon/types'
@@ -24,8 +25,12 @@ export default function PlanResults({
   const hasProviders = plans.some((p) => p.coverage.providers.length > 0)
   const hasDrugs = plans.some((p) => p.coverage.drugs.length > 0)
 
+  // One provider for the whole result set: delayDuration and skipDelayDuration are
+  // provider-level, so this is what makes timing consistent and lets a reader move
+  // between neighbouring tooltips without waiting again.
   return (
-    <div className="space-y-4">
+    <Tooltip.Provider delayDuration={200} skipDelayDuration={300}>
+      <div className="space-y-4">
       <PlanFilters
         plans={plans}
         filters={filters}
@@ -35,7 +40,8 @@ export default function PlanResults({
         hasProviders={hasProviders}
         hasDrugs={hasDrugs}
       />
-      <PlanList plans={visible} allowanceCents={allowanceCents} drugs={drugs} />
-    </div>
+        <PlanList plans={visible} allowanceCents={allowanceCents} drugs={drugs} />
+      </div>
+    </Tooltip.Provider>
   )
 }

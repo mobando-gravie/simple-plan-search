@@ -1,12 +1,19 @@
 'use client'
-import { FileText, Info } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
 import { coverageMatch, type CoverageMatch } from '@/app/lib/ideon/coverage'
 import type { SelectedDrug } from '@/app/lib/ideon/types'
 import { formatCents, netPremiumCents } from '@/app/lib/money'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
+import InfoTooltip, { Tip } from '@/app/InfoTooltip'
 import PlanDetailsModal from '@/app/PlanDetailsModal'
+import {
+  benefitTooltip,
+  metalTooltip,
+  planTypeTooltip,
+  TOOLTIP_COPY,
+} from '@/app/lib/tooltipCopy'
 import { CARD, CHIP } from '@/app/ui/theme'
 
 const METAL_STYLES: Record<string, string> = {
@@ -39,6 +46,7 @@ function Stat({
   strikethrough,
   suffix,
   sub,
+  subTooltip,
 }: {
   label: string
   tooltip: string
@@ -46,12 +54,13 @@ function Stat({
   strikethrough?: string
   suffix?: string
   sub?: string
+  subTooltip?: string
 }) {
   return (
     <div className="px-5">
       <div className={STAT_LABEL}>
         {label}
-        <Info className="h-3.5 w-3.5 text-brown-gravie-30" aria-label={tooltip} />
+        <InfoTooltip copy={tooltip} />
       </div>
       <div className={STAT_VALUE}>
         {value}
@@ -62,7 +71,16 @@ function Stat({
           </span>
         )}
       </div>
-      {sub && <div className={STAT_SUB}>{sub}</div>}
+      {sub && (
+        <div className={STAT_SUB}>
+          {sub}
+          {subTooltip && (
+            <span className="ml-1 inline-flex align-middle no-underline">
+              <InfoTooltip copy={subTooltip} />
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -121,45 +139,61 @@ export default function PlanList({
 
               <div className="grid grid-cols-1 items-start gap-4 p-5 lg:grid-cols-[12rem_1fr_1fr_1fr_auto] lg:gap-0">
                 <div className="flex flex-wrap gap-1.5 lg:pr-5">
-                  <span
-                    className={`${CHIP} ${
-                      easyEnroll
-                        ? 'border-marketplace-orange-30 bg-marketplace-orange-20 text-marketplace-orange-70'
-                        : NEUTRAL_CHIP
-                    }`}
-                  >
-                    {easyEnroll ? '♥ Easy Enroll' : 'Self Enroll'}
-                  </span>
-                  <span className={`${CHIP} ${NEUTRAL_CHIP}`}>
-                    {plan.offMarket ? 'Pre-tax' : 'Post-tax'}
-                  </span>
-                  {plan.metalLevel && (
+                  <Tip copy={easyEnroll ? TOOLTIP_COPY.easyEnroll : TOOLTIP_COPY.selfEnroll}>
                     <span
-                      className={`${CHIP} capitalize ${METAL_STYLES[plan.metalLevel] ?? NEUTRAL_CHIP}`}
+                      className={`${CHIP} ${
+                        easyEnroll
+                          ? 'border-marketplace-orange-30 bg-marketplace-orange-20 text-marketplace-orange-70'
+                          : NEUTRAL_CHIP
+                      }`}
                     >
-                      {plan.metalLevel.replace('_', ' ')}
+                      {easyEnroll ? '♥ Easy Enroll' : 'Self Enroll'}
                     </span>
+                  </Tip>
+                  <Tip copy={plan.offMarket ? TOOLTIP_COPY.preTax : TOOLTIP_COPY.postTax}>
+                    <span className={`${CHIP} ${NEUTRAL_CHIP}`}>
+                      {plan.offMarket ? 'Pre-tax' : 'Post-tax'}
+                    </span>
+                  </Tip>
+                  {plan.metalLevel && (
+                    <Tip copy={TOOLTIP_COPY[metalTooltip(plan.metalLevel)]}>
+                      <span
+                        className={`${CHIP} capitalize ${METAL_STYLES[plan.metalLevel] ?? NEUTRAL_CHIP}`}
+                      >
+                        {plan.metalLevel.replace('_', ' ')}
+                      </span>
+                    </Tip>
                   )}
                   {plan.planType && (
-                    <span className={`${CHIP} ${NEUTRAL_CHIP}`}>{plan.planType}</span>
+                    <Tip copy={TOOLTIP_COPY[planTypeTooltip(plan.planType)]}>
+                      <span className={`${CHIP} ${NEUTRAL_CHIP}`}>{plan.planType}</span>
+                    </Tip>
                   )}
-                  {plan.hsaEligible && <span className={`${CHIP} ${NEUTRAL_CHIP}`}>HSA</span>}
+                  {plan.hsaEligible && (
+                    <Tip copy={TOOLTIP_COPY.hsa}>
+                      <span className={`${CHIP} ${NEUTRAL_CHIP}`}>HSA</span>
+                    </Tip>
+                  )}
                   {providers.length > 0 && (
-                    <span className={`${CHIP} ${MATCH_STYLES[coverageMatch(inNetwork, providers.length)]}`}>
-                      Providers {inNetwork} of {providers.length}
-                    </span>
+                    <Tip copy={TOOLTIP_COPY.providers}>
+                      <span className={`${CHIP} ${MATCH_STYLES[coverageMatch(inNetwork, providers.length)]}`}>
+                        Providers {inNetwork} of {providers.length}
+                      </span>
+                    </Tip>
                   )}
                   {planDrugs.length > 0 && (
-                    <span className={`${CHIP} ${MATCH_STYLES[coverageMatch(covered, planDrugs.length)]}`}>
-                      Prescriptions {covered} of {planDrugs.length}
-                    </span>
+                    <Tip copy={TOOLTIP_COPY.prescriptions}>
+                      <span className={`${CHIP} ${MATCH_STYLES[coverageMatch(covered, planDrugs.length)]}`}>
+                        Prescriptions {covered} of {planDrugs.length}
+                      </span>
+                    </Tip>
                   )}
                 </div>
 
                 <div className="lg:border-l lg:border-brown-gravie-20">
                   <Stat
                     label={hasAllowance ? 'Your Monthly Premium' : 'Premium'}
-                    tooltip="Monthly premium after the Gravie modifier, less any allowance."
+                    tooltip={TOOLTIP_COPY.premium}
                     value={formatCents(
                       hasAllowance
                         ? netPremiumCents(plan.finalPremiumCents, allowanceCents)
@@ -172,13 +206,16 @@ export default function PlanList({
                         : undefined
                     }
                     sub={hasAllowance ? `after ${formatCents(allowanceCents)} benefit` : undefined}
+                    subTooltip={
+                      hasAllowance ? benefitTooltip(formatCents(allowanceCents)) : undefined
+                    }
                   />
                 </div>
 
                 <div className="lg:border-l lg:border-brown-gravie-20">
                   <Stat
                     label="Deductible"
-                    tooltip="What you pay before the plan starts sharing costs."
+                    tooltip={TOOLTIP_COPY.deductible}
                     value={formatCents(plan.deductibleIndividualCents)}
                     suffix=" / person"
                     sub={
@@ -186,13 +223,14 @@ export default function PlanList({
                         ? undefined
                         : `${formatCents(plan.deductibleFamilyCents)} / household`
                     }
+                    subTooltip={TOOLTIP_COPY.perHousehold}
                   />
                 </div>
 
                 <div className="lg:border-l lg:border-brown-gravie-20">
                   <Stat
                     label="Out-of-Pocket Max"
-                    tooltip="The most you pay in a year before the plan covers everything."
+                    tooltip={TOOLTIP_COPY.outOfPocket}
                     value={formatCents(plan.outOfPocketMaxIndividualCents)}
                     suffix=" / person"
                     sub={
@@ -200,6 +238,7 @@ export default function PlanList({
                         ? undefined
                         : `${formatCents(plan.outOfPocketMaxFamilyCents)} / household`
                     }
+                    subTooltip={TOOLTIP_COPY.perHousehold}
                   />
                 </div>
 
