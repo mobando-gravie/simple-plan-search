@@ -109,7 +109,7 @@ export default function PlanList({
                     height={32}
                     unoptimized
                     style={{ width: 'auto', height: '2rem', maxWidth: '100px' }}
-                    className="shrink-0 object-contain grayscale"
+                    className="shrink-0 object-contain grayscale mix-blend-multiply"
                   />
                 ) : (
                   <span className="shrink-0 text-paragraph-small text-brown-gravie-50">
