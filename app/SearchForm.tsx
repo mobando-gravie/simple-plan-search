@@ -141,6 +141,25 @@ export default function SearchForm({
     searchAction.run(() => router.push(`/?${encodeCriteria(next)}`))
   }
 
+  /**
+   * Everything the form holds is seeded from the URL's criteria, so navigating to a
+   * bare `/` runs the existing reset — no second copy of it to keep in sync.
+   */
+  function clearAll() {
+    searchAction.run(() => router.push('/'))
+  }
+
+  // The uncontrolled fields — income, allowance, age, tobacco — live in the DOM, so
+  // this misses a user who typed only one of those and nothing else. `criteria`
+  // covers every submitted case.
+  const dirty =
+    criteria !== null ||
+    providers.length > 0 ||
+    drugs.length > 0 ||
+    spouse !== null ||
+    children.length > 0 ||
+    zip !== ''
+
   function refresh() {
     setRefreshError(null)
     refreshAction.run(async () => {
@@ -310,6 +329,17 @@ export default function SearchForm({
                 Add child
               </Button>
             )}
+            {dirty && (
+              <Button
+                type="button"
+                variant="textDestructive"
+                onClick={clearAll}
+                disabled={busy}
+              >
+                <X />
+                Clear all
+              </Button>
+            )}
           </div>
         </div>
 
@@ -338,6 +368,7 @@ export default function SearchForm({
               )
             }
             onRemove={(key) => setProviders((rows) => rows.filter((r) => String(r.npi) !== key))}
+            onClearAll={() => setProviders([])}
             identifierKind="provider"
             identifierHint="Paste NPIs — 1629059456 | 1700805082, or comma separated"
             onPaste={(rows) =>
@@ -362,6 +393,7 @@ export default function SearchForm({
               )
             }}
             onRemove={(key) => setDrugs((rows) => rows.filter((r) => drugKey(r) !== key))}
+            onClearAll={() => setDrugs([])}
             identifierKind="drug"
             identifierHint="Paste RxCUIs — 748961 | 866083, or comma separated"
             onPaste={(rows) =>

@@ -1,5 +1,5 @@
 'use client'
-import { ClipboardList, Plus, Search } from 'lucide-react'
+import { ClipboardList, Plus, Search, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { errorMessage } from '@/app/lib/errors'
 import { looksLikeMedIds, parseIdentifiers } from '@/app/lib/identifiers'
@@ -27,6 +27,8 @@ export type EntitySearchProps<T, S> = {
   selected: { key: string; label: string }[]
   onAdd: (hit: T) => void
   onRemove: (key: string) => void
+  /** Rendered on the chip row, which only exists when something is selected. */
+  onClearAll: () => void
   /** 'provider' resolves NPIs, 'drug' resolves RxCUIs. */
   identifierKind: 'provider' | 'drug'
   identifierHint: string
@@ -46,6 +48,7 @@ export default function EntitySearch<T, S>({
   selected,
   onAdd,
   onRemove,
+  onClearAll,
   identifierKind,
   identifierHint,
   onPaste,
@@ -226,13 +229,19 @@ export default function EntitySearch<T, S>({
       )}
 
       {selected.length > 0 && (
-        <ul className="flex flex-wrap gap-2">
-          {selected.map((item) => (
-            <li key={item.key}>
-              <RemovableChip label={item.label} onRemove={() => onRemove(item.key)} />
-            </li>
-          ))}
-        </ul>
+        <div className="flex items-start gap-2">
+          <ul className="flex flex-1 flex-wrap gap-2">
+            {selected.map((item) => (
+              <li key={item.key}>
+                <RemovableChip label={item.label} onRemove={() => onRemove(item.key)} />
+              </li>
+            ))}
+          </ul>
+          <Button type="button" variant="text" onClick={onClearAll} className="shrink-0">
+            <X />
+            Clear
+          </Button>
+        </div>
       )}
     </div>
   )
