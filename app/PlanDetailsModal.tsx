@@ -166,7 +166,7 @@ export default function PlanDetailsModal({
                       <span className={`block text-paragraph-regular ${TEXT.body}`}>
                         {provider.name}
                       </span>
-                      <span className={`block ${MUTED_XS}`}>{detail || 'no details cached'}</span>
+                      {detail && <span className={`block ${MUTED_XS}`}>{detail}</span>}
                     </span>
                     <span className="shrink-0 text-right">
                       {inNetwork ? (
