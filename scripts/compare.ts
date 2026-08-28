@@ -5,8 +5,10 @@
 import { writeFile } from 'node:fs/promises'
 import { compare, type CompareReport } from '../app/lib/services/compareService'
 import { householdMembers, type Household } from '../app/lib/household'
+import { firstOfNextMonth } from '../app/lib/dates'
 import { DEFAULT_CRITERIA, searchPlans, type SearchCriteria } from '../app/lib/services/planSearch'
 import { fetchBaseline, loadBaselineFile } from '../app/lib/shopping/client'
+import { fetchHotwireBaseline, hotwirePayload } from '../app/lib/shopping/hotwire'
 import { formatCents, formatCentsDelta } from '../app/lib/money'
 import type { FetchPlansResponse } from '../app/lib/shopping/types'
 
@@ -33,6 +35,11 @@ BASELINE (one required)
   --baseline-file <path>       saved FetchPlansResponse JSON from shopping
   --baseline-url <base> --interview <id>
                                live GET {base}/interviews/{id}/plans
+  --baseline-hotwire <base>    live POST {base}/plans/hotwire-ranked, no interview
+                               needed — sends this run's household and the FIPS we
+                               resolved, so both sides price the same county
+  --allowance <cents>          ICHRA allowance sent to hotwire (default 0; affects
+                               its ranking only, never the premium)
   --header "K: V"              extra request header, repeatable (auth)
 
 OUTPUT
@@ -104,22 +111,48 @@ const criteria: SearchCriteria = {
   perPage: Number(first('limit') ?? 200),
 }
 
-async function loadBaseline(): Promise<FetchPlansResponse> {
-  const file = first('baseline-file')
-  if (file) return loadBaselineFile(file)
-
-  const baseUrl = first('baseline-url') ?? process.env.SHOPPING_BASE_URL
-  const interview = first('interview')
-  if (!baseUrl || !interview) {
-    fail('need --baseline-file, or --baseline-url with --interview')
-  }
+function extraHeaders(): Record<string, string> {
   const headers: Record<string, string> = {}
   for (const raw of flags.get('header') ?? []) {
     const at = raw.indexOf(':')
     if (at < 0) fail(`--header must look like "Name: value"; got "${raw}"`)
     headers[raw.slice(0, at).trim()] = raw.slice(at + 1).trim()
   }
-  return fetchBaseline(baseUrl, interview, headers)
+  return headers
+}
+
+/** Non-null only on the hotwire path — it is the only source that reports one. */
+let droppedUnpriced: number | null = null
+
+/**
+ * `ours` is passed because the hotwire payload needs the FIPS this run resolved:
+ * hotwire will not derive it from the zip, and a zip spanning two counties prices
+ * differently on each side.
+ */
+async function loadBaseline(ours: Awaited<ReturnType<typeof searchPlans>>): Promise<FetchPlansResponse> {
+  const file = first('baseline-file')
+  if (file) return loadBaselineFile(file)
+
+  const hotwireBase = first('baseline-hotwire')
+  if (hotwireBase) {
+    const payload = hotwirePayload({
+      household: criteria.household,
+      zipCode: criteria.zipCode,
+      fipsCode: ours.meta.fipsCode,
+      coverageDate: criteria.enrollmentDate ?? firstOfNextMonth(),
+      allowanceCents: has('allowance') ? Number(first('allowance')) : 0,
+    })
+    const result = await fetchHotwireBaseline(hotwireBase, payload, extraHeaders())
+    droppedUnpriced = result.droppedUnpriced
+    return result.response
+  }
+
+  const baseUrl = first('baseline-url') ?? process.env.SHOPPING_BASE_URL
+  const interview = first('interview')
+  if (!baseUrl || !interview) {
+    fail('need --baseline-file, --baseline-hotwire, or --baseline-url with --interview')
+  }
+  return fetchBaseline(baseUrl, interview, extraHeaders())
 }
 
 function pad(value: string, width: number, align: 'left' | 'right' = 'left'): string {
@@ -204,10 +237,9 @@ function toCsv(report: CompareReport): string {
 }
 
 const toleranceCents = Number(first('tolerance-cents') ?? 0)
-const [ours, baseline] = await Promise.all([
-  searchPlans(criteria, { refresh: has('refresh') }),
-  loadBaseline(),
-])
+// Sequential, not parallel: the hotwire payload needs the FIPS our search resolves.
+const ours = await searchPlans(criteria, { refresh: has('refresh') })
+const baseline = await loadBaseline(ours)
 const report = compare(ours, baseline, toleranceCents)
 
 if (!has('quiet')) {
@@ -232,6 +264,12 @@ console.log(
     `median |Δ| ${formatCents(s.medianAbsDeltaCents)}  max |Δ| ${formatCents(s.maxAbsDeltaCents)}`,
 )
 console.log(`gravie modifiers applied to ${ours.meta.modifiersApplied}/${ours.plans.length} plans`)
+if (droppedUnpriced !== null && droppedUnpriced > 0) {
+  console.log(
+    `shopping returned ${droppedUnpriced} plan(s) it could not price; dropped rather than ` +
+      `compared as $0. If that is most of them, the rate back-fill did not fire.`,
+  )
+}
 
 const jsonPath = first('json')
 if (jsonPath) {

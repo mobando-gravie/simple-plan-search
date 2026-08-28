@@ -77,8 +77,23 @@ The household is one member plus an optional spouse plus any number of children 
 Shopping does not call Ideon — it calls IMPC and computes the household premium
 itself (Method A tiered rates, else Method B age-banded with the ACA
 three-oldest-children cap). Its numbers are an independent baseline, which is the
-point of the diff. `--baseline-file` takes a saved `FetchPlansResponse`;
-`--baseline-url` + `--interview` fetches `GET {base}/interviews/{id}/plans` live.
+point of the diff.
+
+Three baseline sources. `--baseline-file` takes a saved `FetchPlansResponse`;
+`--baseline-url` + `--interview` fetches `GET {base}/interviews/{id}/plans` live;
+and `--baseline-hotwire <base>` posts this run's household to
+`POST {base}/plans/hotwire-ranked`, which needs no persisted interview and is the
+easiest way to check an arbitrary household:
+
+```bash
+npm run compare -- --zip 75201 --member-age 40 --spouse-age 38 \
+  --child-age 10 --child-age 8 --enrollment-date 2026-10-01 \
+  --baseline-hotwire https://ichra-shopping-develop.ichra.qa.gravie.us \
+  --tolerance-cents 100
+```
+
+Needs the Gravie QA VPN. Shopping ships plans it could not price at `$0` rather
+than dropping them; those are filtered out and the count reported.
 
 Exit code is `0` when every matched plan is within `--tolerance-cents` and neither
 side has orphan plans, `1` otherwise, so it drops into CI unchanged.
