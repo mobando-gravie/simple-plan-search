@@ -1,7 +1,8 @@
 'use client'
-import { Plus, RotateCw, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, RotateCw, Search, X } from 'lucide-react'
 import { useActionState, useRef, useState } from 'react'
 import { runSearch, type SearchState } from '@/app/actions/search'
+import { formatCents } from '@/app/lib/money'
 import type { Household } from '@/app/lib/household'
 import EntitySearch from '@/app/EntitySearch'
 import type { DrugHit, ProviderHit, SelectedDrug, SelectedProvider } from '@/app/lib/ideon/types'
@@ -71,6 +72,16 @@ export default function SearchForm() {
   const submitted = state?.criteria
   const household = submitted?.household
 
+  // Collapse once a search returns, so the results start at the top of the page.
+  // Keyed on the returned criteria object: a new result collapses again, and the
+  // user's own expand survives re-renders in between.
+  const [collapsed, setCollapsed] = useState(false)
+  const [collapsedFor, setCollapsedFor] = useState<typeof submitted>(undefined)
+  if (submitted && submitted !== collapsedFor) {
+    setCollapsedFor(submitted)
+    setCollapsed(true)
+  }
+
   // Spouse and children are rows, not just values, so the post-action reset cannot
   // restore them. Holding them as controlled state sidesteps the reset entirely and
   // lets a returned household re-seed them (the sanctioned adjust-state-on-new-prop
@@ -88,6 +99,22 @@ export default function SearchForm() {
     setChildren(household.children.map((child, i) => ({ id: i + 1, age: String(child.age) })))
   }
 
+  const summary = submitted
+    ? [
+        submitted.zipCode,
+        `member ${submitted.household.member.age}`,
+        submitted.household.spouse ? `spouse ${submitted.household.spouse.age}` : null,
+        submitted.household.children.length > 0
+          ? `${submitted.household.children.length} ${submitted.household.children.length === 1 ? 'child' : 'children'}`
+          : null,
+        submitted.allowanceCents ? `${formatCents(submitted.allowanceCents)} allowance` : null,
+        submitted.providers.length > 0 ? `${submitted.providers.length} providers` : null,
+        submitted.drugs.length > 0 ? `${submitted.drugs.length} drugs` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : ''
+
   function refresh() {
     if (!refreshRef.current || !formRef.current) return
     refreshRef.current.value = 'true'
@@ -96,8 +123,34 @@ export default function SearchForm() {
 
   return (
     <div className="space-y-8">
-      <form ref={formRef} action={action} className={`${PANEL} space-y-6`}>
+      <form
+        ref={formRef}
+        action={action}
+        className={`${PANEL} ${collapsed ? 'py-4' : 'space-y-6'}`}
+      >
         <input ref={refreshRef} type="hidden" name="refresh" value="false" />
+
+        {submitted && (
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-expanded={!collapsed}
+            className="flex w-full items-center gap-2 text-left"
+          >
+            <span className="text-header-h5 uppercase text-brown-gravie-50">Search</span>
+            <span className="min-w-0 flex-1 truncate text-paragraph-small text-ink-50">
+              {summary}
+            </span>
+            <span className="flex shrink-0 items-center gap-1 text-paragraph-small font-bold text-marketplace-orange-60">
+              {collapsed ? 'Edit' : 'Hide'}
+              {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </span>
+          </button>
+        )}
+
+        {/* `hidden` rather than unmounting: the inputs must stay in the form or a
+            collapsed Refresh would submit an empty household. */}
+        <div hidden={collapsed} className="space-y-6">
         <input type="hidden" name="providersJson" value={JSON.stringify(providers)} />
         <input type="hidden" name="drugsJson" value={JSON.stringify(drugs)} />
 
@@ -303,6 +356,7 @@ export default function SearchForm() {
             <Search />
             {pending ? 'Searching…' : 'Search'}
           </button>
+          </div>
         </div>
       </form>
 
