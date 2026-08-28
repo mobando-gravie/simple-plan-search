@@ -36,13 +36,25 @@ export async function findLabels(kind: EntityKind, ids: string[]): Promise<Map<s
   return new Map(rows.map((row) => [row.entity_id, row.label]))
 }
 
-/** Only rows carrying a payload — a label-only row cannot rebuild a selection. */
-export async function findRecords(kind: EntityKind, ids: string[]): Promise<Map<string, EntityRecord>> {
+/**
+ * Label and payload together. Rows warmed from a cohort CSV have no payload — enough
+ * to name a provider, not enough to rebuild a drug, so the caller decides what counts.
+ */
+export async function findEntities(
+  kind: EntityKind,
+  ids: string[],
+): Promise<Map<string, EntityRecord>> {
   if (ids.length === 0) return new Map()
-  const rows = await query<{ entity_id: string; label: string; payload: Record<string, unknown> }>(
+  const rows = await query<{
+    entity_id: string
+    label: string
+    payload: Record<string, unknown> | null
+  }>(
     `SELECT entity_id, label, payload FROM sps_entity_label
-      WHERE kind = $1 AND entity_id = ANY($2::text[]) AND payload IS NOT NULL`,
+      WHERE kind = $1 AND entity_id = ANY($2::text[])`,
     [kind, ids],
   )
-  return new Map(rows.map((r) => [r.entity_id, { id: r.entity_id, label: r.label, payload: r.payload }]))
+  return new Map(
+    rows.map((r) => [r.entity_id, { id: r.entity_id, label: r.label, payload: r.payload }]),
+  )
 }

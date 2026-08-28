@@ -9,7 +9,8 @@ import {
   PRESCRIPTION_COVERAGE,
   type BenefitRow,
 } from '@/app/lib/planBenefits'
-import type { SelectedDrug } from '@/app/lib/ideon/types'
+import { drugKey, type DrugCoverage } from '@/app/lib/ideon/coverage'
+import type { SelectedDrug, SelectedProvider } from '@/app/lib/ideon/types'
 import { formatCents } from '@/app/lib/money'
 import { sbcUrl } from '@/app/lib/planBenefits'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
@@ -26,6 +27,21 @@ import {
   MUTED_XS,
   SECTION_TITLE,
 } from '@/app/ui/theme'
+
+/** What gates the prescription beyond the tier. All three are what Ideon reports. */
+function requirementsOf(cover: DrugCoverage): string[] {
+  const out: string[] = []
+  if (cover.priorAuthorization) out.push('Prior authorization')
+  if (cover.quantityLimit) out.push('Quantity limit')
+  if (cover.stepTherapy) out.push('Step therapy')
+  return out
+}
+
+/** Capitalised for display — Ideon sends `individual` / `organization` lower case. */
+function describeProvider(provider: SelectedProvider): string {
+  const kind = provider.type ? provider.type[0].toUpperCase() + provider.type.slice(1) : null
+  return [kind, provider.specialty, provider.city].filter(Boolean).join(' · ')
+}
 
 function BenefitTable({
   benefits,
@@ -66,10 +82,12 @@ function BenefitTable({
 
 export default function PlanDetailsModal({
   plan,
+  providers,
   drugs,
   onClose,
 }: {
   plan: PricedPlan
+  providers: SelectedProvider[]
   drugs: SelectedDrug[]
   onClose: () => void
 }) {
@@ -128,14 +146,55 @@ export default function PlanDetailsModal({
           <BenefitTable benefits={plan.benefits} rows={CARE_SERVICES} />
         </section>
 
+        {providers.length > 0 && (
+          <section className="space-y-3">
+            <h3 className={SECTION_TITLE}>Your Providers</h3>
+            <ul className={DIVIDED_LIST}>
+              {providers.map((provider) => {
+                // Read from the requested list, same rule as the card's chip: a provider
+                // Ideon returned no row for is out of network, not missing.
+                const inNetwork = plan.coverage.providers.some(
+                  (p) => p.npi === provider.npi && p.inNetwork,
+                )
+                const detail = describeProvider(provider)
+                return (
+                  <li
+                    key={provider.npi}
+                    className="flex items-start justify-between gap-4 py-3"
+                  >
+                    <span className="min-w-0">
+                      <span className={`block text-paragraph-regular ${TEXT.body}`}>
+                        {provider.name}
+                      </span>
+                      <span className={`block ${MUTED_XS}`}>{detail || 'no details cached'}</span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      {inNetwork ? (
+                        <span
+                          className={`inline-flex items-center gap-1 text-paragraph-small font-bold ${TEXT.positive} [&_svg]:size-4`}
+                        >
+                          <Check />
+                          In network
+                        </span>
+                      ) : (
+                        <span className={MUTED}>Out of network</span>
+                      )}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )}
+
         {drugs.length > 0 && (
           <section className="space-y-3">
             <h3 className={SECTION_TITLE}>Your Prescriptions</h3>
             <ul className={DIVIDED_LIST}>
               {drugs.map((drug) => {
-                const cover = plan.coverage.drugs.find((d) => d.ndc === drug.ndc)
+                const cover = drug.ndc ? plan.coverage.drugs.find((d) => d.ndc === drug.ndc) : undefined
                 return (
-                  <li key={drug.medId} className="flex items-start justify-between gap-4 py-3">
+                  <li key={drugKey(drug)} className="flex items-start justify-between gap-4 py-3">
                     <span className={`text-paragraph-regular ${TEXT.body}`}>{drug.name}</span>
                     <span className="shrink-0 text-right">
                       {cover?.covered ? (
@@ -153,6 +212,11 @@ export default function PlanDetailsModal({
                           ? 'identifier did not resolve'
                           : formatTier(cover?.tier ?? null)}
                       </span>
+                      {cover && requirementsOf(cover).length > 0 && (
+                        <span className={`block font-bold ${MUTED_XS}`}>
+                          {requirementsOf(cover).join(' · ')}
+                        </span>
+                      )}
                     </span>
                   </li>
                 )

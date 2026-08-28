@@ -38,6 +38,7 @@ export type DrugCoverage = {
   covered: boolean
   priorAuthorization: boolean
   quantityLimit: boolean
+  stepTherapy: boolean
 }
 
 export type PlanCoverage = { providers: ProviderCoverage[]; drugs: DrugCoverage[] }
@@ -71,6 +72,7 @@ export function planCoverage(plan: IdeonPlan, drugCoverages: IdeonCoverage[] = [
         covered: isCoveredTier(c.tier),
         priorAuthorization: c.prior_authorization === true,
         quantityLimit: c.quantity_limit === true,
+        stepTherapy: c.step_therapy === true,
       })),
   }
 }
@@ -97,6 +99,14 @@ export function countInNetwork(
 ): number {
   const inNetwork = new Set(coverage.providers.filter((p) => p.inNetwork).map((p) => p.npi))
   return selected.filter((s) => inNetwork.has(s.npi)).length
+}
+
+/**
+ * The stable identity of a selected drug. An unresolved one has no med_id — they are
+ * all zero — so its rxcui is the only thing that tells two of them apart.
+ */
+export function drugKey(drug: { medId: number; ndc: string | null; rxcui?: number }): string {
+  return drug.ndc === null ? `r${drug.rxcui}` : String(drug.medId)
 }
 
 /** A null ndc is an identifier that never resolved, so it can never be covered. */

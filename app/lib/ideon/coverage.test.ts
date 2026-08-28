@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   countCovered,
   countInNetwork,
+  drugKey,
   coverageMatch,
   coveragesByPlan,
   inNetworkCents,
@@ -87,7 +88,7 @@ test('provider coverage reads in_network per plan', () => {
   })
 })
 
-test('drug coverage carries tier and the prior-auth / quantity flags', () => {
+test('drug coverage carries tier and all three requirement flags', () => {
   const coverage = planCoverage({ id: 'A' } as IdeonPlan, [
     {
       plan_id: 'A',
@@ -95,6 +96,7 @@ test('drug coverage carries tier and the prior-auth / quantity flags', () => {
       tier: 'preferred_generic',
       prior_authorization: true,
       quantity_limit: false,
+      step_therapy: true,
     },
   ])
   assert.deepEqual(coverage.drugs, [
@@ -104,8 +106,19 @@ test('drug coverage carries tier and the prior-auth / quantity flags', () => {
       covered: true,
       priorAuthorization: true,
       quantityLimit: false,
+      stepTherapy: true,
     },
   ])
+})
+
+test('an absent requirement flag is false, never undefined', () => {
+  // Ideon omits the key rather than sending false, and the modal renders on truthiness.
+  const coverage = planCoverage({ id: 'A' } as IdeonPlan, [
+    { plan_id: 'A', drug_package_id: 'X', tier: 'generic' },
+  ])
+  assert.equal(coverage.drugs[0].priorAuthorization, false)
+  assert.equal(coverage.drugs[0].quantityLimit, false)
+  assert.equal(coverage.drugs[0].stepTherapy, false)
 })
 
 test('coverage match has three states, so partial is not the same as none', () => {
@@ -126,6 +139,7 @@ const drugRow = (ndc: string, covered: boolean) => ({
   covered,
   priorAuthorization: false,
   quantityLimit: false,
+  stepTherapy: false,
 })
 
 test('countInNetwork counts only the requested providers Ideon confirmed', () => {
@@ -177,4 +191,11 @@ test('a drug whose identifier never resolved has a null ndc and can never be cov
 test('a drug with no returned coverage row is not covered', () => {
   const coverage: PlanCoverage = { providers: [], drugs: [drugRow('aaa', true)] }
   assert.equal(countCovered([{ ndc: 'aaa' }, { ndc: 'zzz' }], coverage), 1)
+})
+
+test('drugKey tells two unresolved drugs apart, since both have med_id 0', () => {
+  assert.equal(drugKey({ medId: 281606, ndc: '63187-0748-28' }), '281606')
+  // Without the rxcui these two would collide as "0" and duplicate a React key.
+  assert.equal(drugKey({ medId: 0, ndc: null, rxcui: 999999 }), 'r999999')
+  assert.equal(drugKey({ medId: 0, ndc: null, rxcui: 888888 }), 'r888888')
 })

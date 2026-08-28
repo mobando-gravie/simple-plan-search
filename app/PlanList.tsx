@@ -97,7 +97,12 @@ export default function PlanList({
   // Rendered in both branches: a shared link can name a plan the filters it carries
   // would otherwise hide.
   const modal = openPlan && (
-    <PlanDetailsModal plan={openPlan} drugs={drugs} onClose={() => onOpenPlan(null)} />
+    <PlanDetailsModal
+      plan={openPlan}
+      providers={providers}
+      drugs={drugs}
+      onClose={() => onOpenPlan(null)}
+    />
   )
 
   if (plans.length === 0) {

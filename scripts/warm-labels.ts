@@ -55,6 +55,8 @@ console.log(`read ${rows.length} rows from ${csvPath}`)
 // loader refuses to guess here too, and a mispaired name is worse than none.
 const providers = new Map<string, string>()
 const drugs = new Map<string, string>()
+// labelSelections names a drug by med_id, so a URL-loaded search needs this kind too.
+const drugsByMedId = new Map<string, string>()
 let skipped = 0
 
 for (const row of rows) {
@@ -65,10 +67,14 @@ for (const row of rows) {
   } else if (npis.length > 0) skipped++
 
   const rxcuis = split(row['Rx RxCUI IDs'])
+  const medIds = split(row['Rx Med IDs'])
   const drugNames = split(row['Rx Drug Names'])
   if (rxcuis.length === drugNames.length) {
     rxcuis.forEach((cui, i) => { if (isRxcui(cui)) drugs.set(cui, drugNames[i]) })
   } else if (rxcuis.length > 0) skipped++
+  if (medIds.length === drugNames.length) {
+    medIds.forEach((id, i) => { if (isRxcui(id)) drugsByMedId.set(id, drugNames[i]) })
+  }
 }
 
 console.log(`distinct: ${providers.size} providers, ${drugs.size} drugs`)
@@ -78,6 +84,12 @@ async function main() {
   const providerRows: EntityRecord[] = [...providers].map(([id, label]) => ({ id, label }))
   await rememberLabels('provider', providerRows)
   console.log(`cached ${providerRows.length} provider names`)
+
+  await rememberLabels(
+    'drug',
+    [...drugsByMedId].map(([id, label]) => ({ id, label })),
+  )
+  console.log(`cached ${drugsByMedId.size} drug names by med_id`)
 
   const drugRows: EntityRecord[] = [...drugs].map(([id, label]) => ({ id, label }))
   if (!resolveNdc) {

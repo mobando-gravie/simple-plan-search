@@ -42,7 +42,13 @@ function plan(over: Partial<PricedPlan> = {}): PricedPlan {
   }
 }
 
-const covered = { tier: 'generic', covered: true, priorAuthorization: false, quantityLimit: false }
+const covered = {
+  tier: 'generic',
+  covered: true,
+  priorAuthorization: false,
+  quantityLimit: false,
+  stepTherapy: false,
+}
 
 test('no filters keeps everything, sorted by premium ascending', () => {
   const plans = [plan({ hiosPlanId: 'B', finalPremiumCents: 90000 }), plan({ finalPremiumCents: 10000 })]

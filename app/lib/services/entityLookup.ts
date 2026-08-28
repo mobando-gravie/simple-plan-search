@@ -7,7 +7,7 @@ import {
 import type { DrugHit, ProviderHit, SelectedDrug, SelectedProvider } from '../ideon/types'
 import {
   findLabels,
-  findRecords,
+  findEntities,
   rememberLabels,
   type EntityKind,
   type EntityRecord,
@@ -18,6 +18,17 @@ import {
  * names again. A pasted identifier resolves the other direction — by NPI, or by
  * rxcui for drugs, which is the only drug id Ideon will look up.
  */
+
+const str = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null)
+
+/** The descriptive fields the modal shows; all absent on a name-only cache row. */
+function describe(source: { specialty?: unknown; type?: unknown; city?: unknown } | null | undefined) {
+  return {
+    specialty: str(source?.specialty),
+    type: str(source?.type),
+    city: str(source?.city),
+  }
+}
 
 /** A failed write must not fail the search — the label is display-only. */
 async function remember(kind: EntityKind, rows: EntityRecord[]) {
@@ -51,15 +62,15 @@ export async function labelSelections(input: {
   providers: SelectedProvider[]
   drugs: SelectedDrug[]
 }): Promise<{ providers: SelectedProvider[]; drugs: SelectedDrug[] }> {
-  const [providerLabels, drugLabels] = await Promise.all([
-    findLabels('provider', input.providers.map((p) => String(p.npi))),
+  const [providerRecords, drugLabels] = await Promise.all([
+    findEntities('provider', input.providers.map((p) => String(p.npi))),
     findLabels('drug', input.drugs.map((d) => String(d.medId))),
   ])
   return {
-    providers: input.providers.map((p) => ({
-      ...p,
-      name: providerLabels.get(String(p.npi)) ?? p.name,
-    })),
+    providers: input.providers.map((p) => {
+      const hit = providerRecords.get(String(p.npi))
+      return { ...p, name: hit?.label ?? p.name, ...describe(hit?.payload) }
+    }),
     drugs: input.drugs.map((d) => ({ ...d, name: drugLabels.get(String(d.medId)) ?? d.name })),
   }
 }
@@ -90,24 +101,30 @@ async function mapCapped<In, Out>(items: In[], fn: (item: In) => Promise<Out>): 
  * So a failed lookup costs the display name, never the coverage answer.
  */
 export async function resolveProviders(npis: string[]): Promise<Resolution<SelectedProvider>> {
-  // findLabels, not findRecords: a provider selection is just { npi, name }, so a
-  // name-only row — such as one warmed from a cohort CSV — is already a complete hit.
-  const cached = await findLabels('provider', npis)
+  // A row warmed from a cohort CSV carries a name but no payload. That is enough to
+  // label a chip and not enough for the details panel, so it is a fallback rather than
+  // a hit: Ideon is still asked, and the cached name covers the ask failing.
+  const cached = await findEntities('provider', npis)
   const learned: EntityRecord[] = []
 
   const rows = await mapCapped(npis, async (id) => {
-    const name = cached.get(id)
-    if (name) return { provider: { npi: Number(id), name }, ok: true }
+    const hit = cached.get(id)
+    if (hit?.payload) {
+      return { provider: { npi: Number(id), name: hit.label, ...describe(hit.payload) }, ok: true }
+    }
 
     const fetched = await fetchProviderByNpi(Number(id))
-    if (!fetched) return { provider: { npi: Number(id), name: id }, ok: false }
+    if (!fetched) {
+      // Named from the warm cache when it has one, else labelled by its own id.
+      return { provider: { npi: Number(id), name: hit?.label ?? id }, ok: hit !== undefined }
+    }
 
     learned.push({
       id,
       label: fetched.name,
-      payload: { specialty: fetched.specialty, city: fetched.city },
+      payload: { specialty: fetched.specialty, type: fetched.type, city: fetched.city },
     })
-    return { provider: { npi: fetched.npi, name: fetched.name }, ok: true }
+    return { provider: { npi: fetched.npi, name: fetched.name, ...describe(fetched) }, ok: true }
   })
 
   await remember('provider', learned)
@@ -122,8 +139,11 @@ export async function resolveProviders(npis: string[]): Promise<Resolution<Selec
  * and the display layer counts it as not covered rather than dropping it.
  */
 export async function resolveDrugs(rxcuis: string[]): Promise<Resolution<SelectedDrug>> {
-  const cached = await findRecords('drug_rxcui', rxcuis)
+  const cached = await findEntities('drug_rxcui', rxcuis)
   const learned: EntityRecord[] = []
+  // labelSelections reads `drug` by med_id, so a paste that only wrote `drug_rxcui`
+  // came back from a shared URL labelled with its raw NDC.
+  const byMedId: EntityRecord[] = []
 
   const rows = await mapCapped(rxcuis, async (id) => {
     const rxcui = Number(id)
@@ -141,10 +161,11 @@ export async function resolveDrugs(rxcuis: string[]): Promise<Resolution<Selecte
     }
 
     learned.push({ id, label: fetched.name, payload: { ndc, medId: fetched.medId } })
+    byMedId.push({ id: String(fetched.medId), label: fetched.name })
     return { drug: { medId: fetched.medId, ndc, name: fetched.name, rxcui }, ok: true }
   })
 
-  await remember('drug_rxcui', learned)
+  await Promise.all([remember('drug_rxcui', learned), remember('drug', byMedId)])
   return {
     resolved: rows.map((r) => r.drug),
     unresolved: rxcuis.filter((_, i) => !rows[i].ok),

@@ -2,7 +2,14 @@
 
 export type Applicant = { age: number; smoker: boolean; child: boolean }
 
-export type SelectedProvider = { npi: number; name: string }
+export type SelectedProvider = {
+  npi: number
+  name: string
+  /** Display-only, read back from the entity cache; absent on a cold URL load. */
+  specialty?: string | null
+  type?: string | null
+  city?: string | null
+}
 export type SelectedDrug = {
   medId: number
   /** null when a pasted RxCUI did not resolve — no package, so it cannot be asked about. */

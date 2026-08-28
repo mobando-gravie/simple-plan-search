@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { refreshSearch } from '@/app/actions/search'
 import { addUnique } from '@/app/lib/array'
+import { drugKey } from '@/app/lib/ideon/coverage'
 import { minutesAgo } from '@/app/lib/dates'
 import { centsToDollarString, dollarsToCents, formatCents } from '@/app/lib/money'
 import { plural } from '@/app/lib/text'
@@ -33,11 +34,6 @@ const PERSON_CARD = `${CARD} bg-brown-gravie-5 p-4`
 const ADD_CARD = `flex flex-col items-start justify-center gap-2 rounded-sm border border-dashed ${BORDER.subtle} p-4`
 
 type ChildRow = { id: number; age: string }
-
-/** An unresolved drug has no med_id, so its rxcui is the only stable key it has. */
-function drugKey(drug: SelectedDrug): string {
-  return drug.ndc === null ? `r${drug.rxcui}` : String(drug.medId)
-}
 
 function num(form: FormData, name: string): number | undefined {
   const raw = String(form.get(name) ?? '').trim()
@@ -415,11 +411,7 @@ export default function SearchForm({
               <strong className={`font-bold ${TEXT.heading}`}>{result.meta.modifiersApplied}</strong>{' '}
               of {result.plans.length} carry a Gravie modifier
             </span>
-            <span>
-              {result.cache.hit
-                ? `cached ${minutesAgo(result.cache.ageSeconds)} min ago`
-                : 'fetched live from Ideon'}
-            </span>
+            {result.cache.hit && <span>cached {minutesAgo(result.cache.ageSeconds)} min ago</span>}
           </div>
           {/* Remounted per search so the filters re-seed from the URL rather than
               carrying over a selection the new result set may not contain. */}
