@@ -20,3 +20,6 @@ mytasks/
 /tmp-compare/
 *.local.csv
 *.local.json
+
+# Local scratch — screenshots, throwaway output. Never committed.
+.tmp/
