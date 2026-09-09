@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import { errorMessage } from '../errors'
 import { runPlanQuery, type PlanQueryResult } from '../services/planQuery'
 import { parseApiQuery, type ApiQuery } from './query'
-import { jsonError } from './respond'
+import { jsonError, upstreamError } from './respond'
 
 /**
  * The shared body of every plan-bearing route: parse the query, run the search
@@ -24,10 +23,6 @@ export async function planQueryRoute(
     // A route that has to answer 404 builds its own response instead of a body.
     return built instanceof NextResponse ? built : NextResponse.json(built)
   } catch (e) {
-    return jsonError(
-      502,
-      errorMessage(e, 'Plan search failed.'),
-      'Upstream Ideon or the plan cache is unavailable; retry, or drop providers/drugs to use the cheaper v8 search.',
-    )
+    return upstreamError(e, 'Plan search is temporarily unavailable.')
   }
 }

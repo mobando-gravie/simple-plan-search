@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { errorMessage } from '@/app/lib/errors'
 import { isNpi, isRxcui } from '@/app/lib/identifiers'
 import { resolveDrugs, resolveProviders } from '@/app/lib/services/entityLookup'
 
@@ -33,8 +32,9 @@ export async function POST(request: Request) {
       kind === 'provider' ? await resolveProviders(ids) : await resolveDrugs(ids)
     return NextResponse.json({ resolved, unresolved: [...unresolved, ...malformed] })
   } catch (e) {
+    console.error('resolve failed', e)
     return NextResponse.json(
-      { error: errorMessage(e, 'Resolve failed.'), resolved: [], unresolved: body.ids },
+      { error: 'Resolve is temporarily unavailable.', retryable: true, resolved: [], unresolved: body.ids },
       { status: 502 },
     )
   }

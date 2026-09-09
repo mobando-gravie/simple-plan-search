@@ -9,5 +9,5 @@ export async function GET(request: Request) {
   const zip = params.get('zip')?.trim() ?? ''
   // Provider search is geographic; without a zip there is nothing to search around.
   if (term.length < MIN_SEARCH_TERM || !isZipCode(zip)) return NextResponse.json({ hits: [] })
-  return hitsResponse('provider search failed', () => lookupProviders(zip, term))
+  return hitsResponse('Provider search is temporarily unavailable.', () => lookupProviders(zip, term))
 }

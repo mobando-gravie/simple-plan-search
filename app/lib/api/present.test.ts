@@ -40,10 +40,10 @@ function plan(over: Partial<PricedPlan> = {}): PricedPlan {
 
 const EMPTY: Selections = { providers: [], drugs: [], allowanceCents: 0 }
 
-test('a summary quotes the Gravie-priced premium alongside the raw Ideon one', () => {
+test('a summary quotes the overlay-priced premium alongside the base one', () => {
   const summary = planSummary(plan(), EMPTY)
   assert.equal(summary.premiumCents, 40800)
-  assert.equal(summary.ideonPremiumCents, 40000)
+  assert.equal(summary.basePremiumCents, 40000)
   assert.equal(summary.gravieMultiplier, 1.02)
   assert.equal(summary.enrollmentType, 'EASY_ENROLL')
 })

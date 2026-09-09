@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
-import { jsonError } from '@/app/lib/api/respond'
-import { errorMessage } from '@/app/lib/errors'
+import { jsonError, upstreamError } from '@/app/lib/api/respond'
 import { isRxcui } from '@/app/lib/identifiers'
 import { resolveDrugs } from '@/app/lib/services/entityLookup'
 
-/** RxCUI is the only drug identifier Ideon will look up; a med_id cannot be resolved. */
+/** RxCUI is the only drug identifier the source will look up; a med_id cannot be resolved. */
 export async function GET(request: Request, { params }: { params: Promise<{ rxcui: string }> }) {
   const { rxcui } = await params
   if (!isRxcui(rxcui)) {
@@ -15,7 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ rxcu
     if (unresolved.length > 0 || resolved.length === 0) {
       return jsonError(
         404,
-        `Ideon has no formulary drug for RxCUI ${rxcui}.`,
+        `No formulary drug for RxCUI ${rxcui}.`,
         'Search by name: /api/drugs?q=lipitor',
       )
     }
@@ -28,6 +27,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ rxcu
       },
     })
   } catch (e) {
-    return jsonError(502, errorMessage(e, 'Drug lookup failed.'))
+    return upstreamError(e, 'Drug lookup is temporarily unavailable.')
   }
 }

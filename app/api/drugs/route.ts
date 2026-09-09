@@ -6,5 +6,5 @@ import { MIN_SEARCH_TERM } from '@/app/lib/validation'
 export async function GET(request: Request) {
   const term = new URL(request.url).searchParams.get('q')?.trim() ?? ''
   if (term.length < MIN_SEARCH_TERM) return NextResponse.json({ hits: [] })
-  return hitsResponse('drug search failed', () => lookupDrugs(term))
+  return hitsResponse('Drug search is temporarily unavailable.', () => lookupDrugs(term))
 }

@@ -157,7 +157,8 @@ export function planSummary(plan: PricedPlan, s: Selections) {
     effectiveYear: plan.effectiveYear,
     enrollmentType: plan.enrollmentType,
     premiumCents: plan.finalPremiumCents,
-    ideonPremiumCents: plan.ideonPremiumCents,
+    // Named for what it is, not for who supplied it.
+    basePremiumCents: plan.ideonPremiumCents,
     netPremiumCents:
       s.allowanceCents > 0 ? netPremiumCents(plan.finalPremiumCents, s.allowanceCents) : null,
     gravieMultiplier: plan.gravieMultiplier,

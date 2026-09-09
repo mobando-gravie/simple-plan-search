@@ -1,8 +1,8 @@
 # simple-plan-search — agent API reference
 
-Read-only HTTP over Ideon's individual (ACA) market, cached in Postgres, priced
-with Gravie's premium overlay. All endpoints are GET, all input is query-string,
-all output is JSON except this document.
+Read-only HTTP over the individual (ACA) market, cached and priced with the
+Gravie premium overlay. All endpoints are GET, all input is query-string, all
+output is JSON except this document.
 
 **Base URL: `https://simple-plan-search.vercel.app`** — the default for every
 path below. Local development serves the same surface at
@@ -15,13 +15,13 @@ path below. Local development serves the same surface at
 
 Checked in order; first match passes.
 
-1. Client IP in `ALLOWED_IPS`.
-2. `Authorization: Bearer <token>` or `X-Api-Key: <token>`, token from `API_TOKENS`.
-3. `session` cookie from the `/login` form.
+1. Client address on the service's allowlist.
+2. `Authorization: Bearer <token>` or `X-Api-Key: <token>`.
+3. Session cookie from the browser sign-in.
 
 Failure on `/api/*` and `/AGENTS_GUIDE.md`: **401 with a JSON body**. No redirect,
 so a parse failure never means "you were sent an HTML login page". Other paths
-redirect to `/login` as before.
+redirect to the sign-in form as before.
 
 Which rule applies depends on where the request comes from:
 
@@ -31,8 +31,7 @@ Which rule applies depends on where the request comes from:
 | anything against the hosted base URL | rule 2 — send the bearer token; an arbitrary agent's IP is not on the allowlist |
 
 A hosted 401 means the token is missing or wrong, not that the service is down.
-`API_TOKENS` is set in the deployment's environment; obtain a token from whoever
-owns it rather than guessing.
+Tokens are issued by the service owner; request one rather than guessing.
 
 ## Conventions
 
@@ -64,6 +63,18 @@ owns it rather than guessing.
 
 `/api/plans`, `/api/plans/{id}`, `/api/market` and `/api/coverage` take the same
 search parameters.
+
+### Choosing one
+
+| question | endpoint |
+|---|---|
+| what exists here, how many, what price range | `/api/market` — `limit` does not affect it, so aggregates always cover every matched plan |
+| which plans should this household see | `/api/plans` |
+| why does this plan cover them, or not | `/api/coverage` — per-provider and per-drug rows with tier and prior-auth |
+| everything about one plan | `/api/plans/{hiosPlanId}` — benefits, documents, applicant premiums |
+
+Resolve identifiers first. `drugs` wants a `medId_ndc` selector, which is neither
+a RxCUI nor a med_id: `GET /api/drugs/{rxcui}` returns it as `drug.selector`.
 
 ## Search parameters
 
@@ -115,7 +126,7 @@ Present on `/api/plans`, `/api/plans/{id}`, `/api/market`, `/api/coverage`.
 | field | meaning |
 |---|---|
 | `fipsCode`, `state`, `countyName` | resolved county; a multi-county zip resolves to the first |
-| `totalAvailable` | plans Ideon reports for this zip and household |
+| `totalAvailable` | plans available for this zip and household |
 | `fetched` | plans pulled and cached by this search |
 | `matched` | plans surviving the filters |
 | `returned` | plans in this response body, after `limit` |
@@ -135,9 +146,9 @@ Present on `/api/plans`, `/api/plans/{id}`, `/api/market`, `/api/coverage`.
 | `planType` | string \| null | as the carrier files it, e.g. `HMO` |
 | `hsaEligible`, `offMarket` | boolean | |
 | `effectiveYear` | int \| null | |
-| `enrollmentType` | string | `EASY_ENROLL` \| `SELF_ENROLL`; from the Gravie overlay, not Ideon |
-| `premiumCents` | int \| null | **quote this** — Ideon premium with the overlay applied |
-| `ideonPremiumCents` | int \| null | before the overlay |
+| `enrollmentType` | string | `EASY_ENROLL` \| `SELF_ENROLL`; set by the overlay |
+| `premiumCents` | int \| null | **quote this** — the source premium with the overlay applied |
+| `basePremiumCents` | int \| null | the premium before the overlay |
 | `netPremiumCents` | int \| null | `max(0, premium − allowance)`; `null` unless `allowance` was sent |
 | `gravieMultiplier` | number | `1` when no overlay row matched |
 | `gravieFlatCents` | int | |
@@ -153,7 +164,7 @@ Summary fields plus:
 |---|---|
 | `logoUrl`, `formularyUrl` | string \| null |
 | `documents[]` | `{type, url}` |
-| `compositeRated` | boolean — true when Ideon prices the plan by household tier |
+| `compositeRated` | boolean — true when the plan is priced by household tier rather than per applicant |
 | `applicantPremiums[]` | `{age, child, premiumCents, waived}`; `waived` is the ACA three-oldest-children cap |
 | `coverage.providers[]` | `{npi, name, specialty, city, inNetwork}` |
 | `coverage.drugs[]` | `{medId, ndc, rxcui, name, covered, tier, tierLabel, priorAuthorization, quantityLimit, stepTherapy}` |
@@ -192,10 +203,10 @@ Each entry of `plans[]` carries `hiosPlanId`, `planName`, `carrierName`,
 - `GET /api/providers?zip=&q=` — geographic; searches 25 miles around the zip,
   widening to 100 only if that finds nothing. `q` must be ≥3 characters.
   Returns `hits[] {npi, name, specialty, type, city}`.
-- `GET /api/providers/{npi}` — 10 digits. 404 if Ideon does not know it.
+- `GET /api/providers/{npi}` — 10 digits. 404 if the NPI is not known.
 - `GET /api/drugs?q=` — national, formulary-listed drugs only. Returns
   `hits[] {medId, name, packages[] {ndc, label}}`.
-- `GET /api/drugs/{rxcui}` — RxCUI is the only drug identifier Ideon resolves; a
+- `GET /api/drugs/{rxcui}` — RxCUI is the only drug identifier that resolves; a
   bare `med_id` cannot be looked up. Returns `drug` plus `drug.selector`, the
   `medId_ndc` string the `drugs` parameter expects.
 - `POST /api/resolve` — batch, max 50 ids:
@@ -205,42 +216,164 @@ Each entry of `plans[]` carries `hiosPlanId`, `planName`, `carrierName`,
 
 Body is always `{"error": string, "hint": string}`.
 
-| status | cause |
+| status | cause | retry |
+|---|---|---|
+| 400 | missing or malformed parameter; unknown `metals` / `sort` / `market` / `view`; `limit` out of range; `/api/coverage` with nothing to check | no — fix the query |
+| 401 | no allowlisted IP, valid token or session | no — fix the token |
+| 404 | plan not available for **this** search; unknown NPI, RxCUI or zip | no |
+| 500 | this document is unavailable | no |
+| 502 | plan data temporarily unavailable, **including rate limiting** | yes — backoff |
+
+An empty `plans[]` is a real answer. Unknown enum values are rejected at 400, so
+nothing silently filters everything out.
+
+## Rate limits and retries
+
+The plan data source rate-limits, and the service reports that as a **502 with
+`retryable: true`** — the same shape as any other temporary failure. Branch on
+`retryable`, never on the message text:
+
+```json
+{"error": "Plan search is temporarily unavailable.",
+ "hint": "Temporary. Retry with exponential backoff; if it persists, drop providers and drugs to use the cheaper search.",
+ "retryable": true}
+```
+
+A 400, 401 or 404 never carries `retryable`. Observed on a 260-household run:
+
+| concurrency | outcome |
 |---|---|
-| 400 | missing or malformed parameter; unknown `metals` / `sort` / `market` / `view`; `limit` out of range; `/api/coverage` with nothing to check |
-| 401 | no allowlisted IP, valid token or session |
-| 404 | plan not in this search; unknown NPI, RxCUI or zip |
-| 500 | `AGENTS_GUIDE.md` missing from the deployment |
-| 502 | Ideon or the plan cache unavailable |
+| 6 | trips the rate limit within a minute; retries start burning |
+| 3 | sustained clean — **the safe ceiling for bulk work** |
+| 1 | clean, ~105 s per household |
+
+- Retry **502 only**, ~8 attempts, exponential backoff: `min(60, 5 * 2**attempt)`.
+- Per-request latency dominates pacing. A 166-plan `providers`+`drugs` search
+  takes 60–90 s, because coverage requires a richer and slower upstream query. A
+  0.5 s sleep between calls is free insurance; 5 s buys nothing.
+- Dropping `providers` and `drugs` falls back to the cheaper search when only
+  prices are needed.
+
+## Caching
+
+Three layers. Only the third is the caller's.
+
+1. **The service's plan cache, 24 h**, shared and server-side. `cache.hit` and
+   `cache.ageSeconds` report it; `refresh=true` bypasses it at one upstream call
+   per page of the result set.
+2. **Any HTTP cache in front of the service.** Responses are `must-revalidate`.
+3. **The caller's own**, required for bulk. One file per response, keyed on a
+   hash of the full URL.
+
+Three rules make layer 3 safe:
+
+- **Key on the full query string, `allowance` included.** The service excludes
+  `allowance` from *its* key because it never changes a premium — but it does
+  change `netPremiumCents` in the body being stored. Drop it from the key and one
+  household is served another's net premium.
+- **Never cache a non-200.** Caching a 502 freezes a transient rate limit into a
+  permanent one.
+- **Memoize identifier lookups separately.** The same NPIs and RxCUIs recur
+  across households; resolve each once per process.
+
+The payoff is resume safety. A 260-row job interrupted four times replayed
+100–222 cached rows in 8–15 seconds per restart and resumed live calls only
+where it stopped.
+
+```python
+def get(url, tries=8):
+    slot = CACHE / (hashlib.sha256(url.encode()).hexdigest()[:24] + ".json")
+    if slot.exists():
+        return json.loads(slot.read_text())        # no pacing, no network
+    for attempt in range(tries):
+        try:
+            body = fetch(url)                      # Authorization: Bearer <token>
+            slot.write_text(json.dumps(body))      # only 200s are ever written
+            time.sleep(0.5)
+            return body
+        except HTTPError as e:
+            if e.code in (400, 401, 404):          # the query or the token
+                return {"_error": e.code}
+        time.sleep(min(60, 5 * (2 ** attempt)))    # 502 and transport errors
+    return {"_error": "exhausted"}
+```
+
+## Bulk runs
+
+- **Never filter with `provider_coverage=all` or `drug_coverage=all`.** When no
+  plan covers everything, the response is empty and the household disappears from
+  the results entirely. Pull unfiltered and rank locally, so the ceiling the
+  market actually offers is discovered rather than assumed. In that 260-household
+  run, 140 markets could not cover everything requested and 10 covered nothing.
+- **Rank coverage first, then cost.** Take the plans tied at the observed
+  coverage ceiling, then the lowest `netPremiumCents` among them.
+- **Treat near-ties as ties.** Within a few dollars a month, prefer the richer
+  plan — lower `outOfPocketMaxIndividualCents`, then lower
+  `deductibleIndividualCents`. Paying the same for less protection is never
+  better. When the allowance covers a plan outright every free plan ties at zero
+  and cheapest-first stops discriminating; 65 of 260 households had at least one
+  free plan.
+- **Report the inputs beside the pick** — coverage ceiling against what was
+  requested, pool size at that ceiling, market plan count, county, and any
+  exclusions. A plan id with no provenance cannot be reviewed, and "this market
+  only offered 2 of the 5 requested providers" is itself the answer.
+- **Carry an annual worst case** (`netPremiumCents × 12 + outOfPocketMaxIndividualCents`)
+  next to the monthly figure. Cheapest-monthly and lowest-total-exposure disagree
+  often enough that both are needed to sign off.
+
+## Silent-failure traps
+
+Both produce confident, wrong results and raise no error.
+
+**Leading-zero ZIPs.** Spreadsheets coerce `02186` to `2186`, which returns
+`400 zip is required and must be five digits`. Every ZIP in MA, NH, NJ, CT, RI,
+ME, VT and PR is affected. Zero-pad to five characters on ingest.
+
+**Dependents who have aged out.** ACA dependent coverage ends at 26. A
+26-year-old in `child_ages` returns `totalAvailable: 0` for the **entire
+household** — no warning, no partial result, just an empty market that reads
+exactly like "no plans here":
+
+```
+child_ages=21,24,26  ->  totalAvailable 0
+child_ages=21,24,25  ->  totalAvailable 40
+```
+
+Drop children aged 26 and over before searching, and record that it happened so
+the row stays auditable. Compute every dependent's age **at the enrollment
+date**, not today, and pin `enrollment_date` so the age arithmetic and the query
+cannot disagree. The ACA cap on the three oldest children is applied by the
+service itself and reported as `waived` on `applicantPremiums[]` in the full
+view.
 
 ## Constraints
 
-- `premiumCents` is the member-facing number. `ideonPremiumCents` is upstream's
-  figure before the Gravie overlay; do not quote it.
-- Sending `providers` or `drugs` switches the upstream call to Ideon v7, the only
-  version returning coverage. Different request, different cache entry, slower.
-  Omit both when only prices are needed.
+- `premiumCents` is the member-facing number. `basePremiumCents` is the figure
+  before the Gravie overlay; do not quote it.
+- Sending `providers` or `drugs` switches to the only upstream query that returns
+  coverage. Different request, different cache entry, slower. Omit both when only
+  prices are needed.
 - `limit` never changes what is searched. The search always pulls 200 plans, so
   `limit=5` and `limit=50` share one cache entry, and `sort=premium-desc&limit=3`
   really is the three most expensive matching plans.
-- The plan cache is 24 h. Read `cache.hit` and `cache.ageSeconds`. `refresh=true`
-  costs one Ideon call per page of the result set; use it deliberately.
 - `allowance` never changes a premium. It drives `netPremiumCents` and the
-  `free-floor` sort, and is excluded from the cache key.
+  `free-floor` sort; see Caching for what that means for a caller's own key.
 - `free-floor` without an `allowance` degrades to `premium-asc`. With one, it
   orders the richest plan available at zero cost first, then plans costing
   something, cheapest first.
-- Coverage is counted off the submitted list, not off the rows Ideon returned. A
+- Coverage is counted off the submitted list, not off the rows that came back. A
   provider or drug with no row counts as not in network / not covered; the
   denominator never shrinks.
 - A drug supplied as `r<rxcui>` has no NDC, so it is always counted as not
-  covered.
+  covered. It lowers every plan's score equally and therefore discriminates
+  nothing — resolve the selector instead, or drop the drug and record the
+  shrunken denominator.
 - A plan exists only inside a search. `/api/plans/{id}` needs the same
   parameters, and 404 means "not available for this search", not "no such id".
 - A zip spanning several counties resolves to the first. Check `market.fipsCode`
   and `market.countyName` before trusting a surprising result.
-- Plans Ideon could not price carry `premiumCents: null` and sort last in every
-  direction.
+- Plans that could not be priced carry `premiumCents: null` and sort last in
+  every direction.
 
 ## Recipes
 

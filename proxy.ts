@@ -18,7 +18,7 @@ function unauthorized(): NextResponse {
   return NextResponse.json(
     {
       error: 'Unauthorized.',
-      hint: `Call from an allowlisted IP, or send Authorization: Bearer <token> with a token from API_TOKENS. See ${GUIDE_PATH}.`,
+      hint: `Call from an allowlisted address, or send Authorization: Bearer <token>. See ${GUIDE_PATH}.`,
     },
     { status: 401 },
   )
