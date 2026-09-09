@@ -31,10 +31,15 @@ loopback so local dev never sees the login page.
 A read-only REST surface for agents driving the app with `curl` and `jq`. The
 guide is served from the app and checked in at `AGENTS_GUIDE.md`:
 
+The default base URL is the deployment, `https://simple-plan-search.vercel.app`;
+local dev serves the same surface on `http://localhost:4111`.
+
 ```bash
-curl -s http://localhost:4111/AGENTS_GUIDE.md   # the guide
-curl -s http://localhost:4111/api | jq          # machine-readable index
-curl -s "http://localhost:4111/api/plans?zip=11201&age=40&sort=premium-asc&limit=5" \
+BASE=https://simple-plan-search.vercel.app
+curl -s -H "Authorization: Bearer $TOKEN" "$BASE/AGENTS_GUIDE.md"   # the guide
+curl -s -H "Authorization: Bearer $TOKEN" "$BASE/api" | jq          # machine-readable index
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "$BASE/api/plans?zip=11201&age=40&sort=premium-asc&limit=5" \
   | jq -r '.plans[] | "\(.carrierName) $\(.premiumCents/100) \(.planName)"'
 ```
 
@@ -45,8 +50,9 @@ through the same services the web UI uses, so the API and the page cannot drift.
 
 Requests to `/api/*` and `/AGENTS_GUIDE.md` answer an unauthenticated caller
 with **401 JSON** rather than the login redirect, so a failed call never hands
-HTML to `jq`. Set `API_TOKENS` to let an agent off the IP allowlist in with
-`Authorization: Bearer <token>`.
+HTML to `jq`. Loopback is allowlisted, so local dev needs no header; against the
+deployment an agent's IP never is, so set `API_TOKENS` in the Vercel environment
+and pass `Authorization: Bearer <token>`.
 
 ## Gravie modifiers
 

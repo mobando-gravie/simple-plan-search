@@ -4,6 +4,10 @@ Read-only HTTP over Ideon's individual (ACA) market, cached in Postgres, priced
 with Gravie's premium overlay. All endpoints are GET, all input is query-string,
 all output is JSON except this document.
 
+**Base URL: `https://simple-plan-search.vercel.app`** — the default for every
+path below. Local development serves the same surface at
+`http://localhost:4111`.
+
 - Machine-readable endpoint index: `GET /api`
 - This document: `GET /AGENTS_GUIDE.md` (`text/markdown`)
 
@@ -18,6 +22,17 @@ Checked in order; first match passes.
 Failure on `/api/*` and `/AGENTS_GUIDE.md`: **401 with a JSON body**. No redirect,
 so a parse failure never means "you were sent an HTML login page". Other paths
 redirect to `/login` as before.
+
+Which rule applies depends on where the request comes from:
+
+| caller | passes on |
+|---|---|
+| local dev on `http://localhost:4111` | rule 1 — loopback is allowlisted, no header needed |
+| anything against the hosted base URL | rule 2 — send the bearer token; an arbitrary agent's IP is not on the allowlist |
+
+A hosted 401 means the token is missing or wrong, not that the service is down.
+`API_TOKENS` is set in the deployment's environment; obtain a token from whoever
+owns it rather than guessing.
 
 ## Conventions
 
@@ -230,8 +245,9 @@ Body is always `{"error": string, "hint": string}`.
 ## Recipes
 
 ```bash
-BASE=http://localhost:4111
-AUTH=(-H "Authorization: Bearer $TOKEN")   # omit on an allowlisted IP
+BASE=https://simple-plan-search.vercel.app
+AUTH=(-H "Authorization: Bearer $TOKEN")   # required against the hosted URL;
+                                           # omit for local dev on :4111
 
 # endpoint index
 curl -s "${AUTH[@]}" "$BASE/api" | jq
