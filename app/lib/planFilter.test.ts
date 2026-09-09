@@ -49,6 +49,23 @@ const covered = {
   stepTherapy: false,
 }
 
+
+test('plan types and carriers match case-insensitively', () => {
+  const plans = [plan({ planType: 'HMO', carrierName: 'HealthFirst' })]
+
+  assert.equal(applyPlanFilters(plans, { ...DEFAULT_FILTERS, planTypes: ['hmo'] }).length, 1)
+  assert.equal(applyPlanFilters(plans, { ...DEFAULT_FILTERS, planTypes: ['HMO'] }).length, 1)
+  assert.equal(applyPlanFilters(plans, { ...DEFAULT_FILTERS, planTypes: ['ppo'] }).length, 0)
+  assert.equal(applyPlanFilters(plans, { ...DEFAULT_FILTERS, carriers: ['healthfirst'] }).length, 1)
+  assert.equal(applyPlanFilters(plans, { ...DEFAULT_FILTERS, carriers: ['Oscar'] }).length, 0)
+})
+
+test('a plan with no plan type is excluded once a plan-type filter is on', () => {
+  const plans = [plan({ planType: null })]
+  assert.equal(applyPlanFilters(plans, { ...DEFAULT_FILTERS, planTypes: ['hmo'] }).length, 0)
+  assert.equal(applyPlanFilters(plans, DEFAULT_FILTERS).length, 1)
+})
+
 test('no filters keeps everything, sorted by premium ascending', () => {
   const plans = [plan({ hiosPlanId: 'B', finalPremiumCents: 90000 }), plan({ finalPremiumCents: 10000 })]
   const out = applyPlanFilters(plans, DEFAULT_FILTERS)

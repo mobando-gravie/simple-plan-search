@@ -26,6 +26,28 @@ matches `ALLOWED_IPS` (v4 or v6, CIDR supported), otherwise it needs a session
 cookie, which the `/login` password form issues. `.env.example` allowlists
 loopback so local dev never sees the login page.
 
+## Agent API
+
+A read-only REST surface for agents driving the app with `curl` and `jq`. The
+guide is served from the app and checked in at `AGENTS_GUIDE.md`:
+
+```bash
+curl -s http://localhost:4111/AGENTS_GUIDE.md   # the guide
+curl -s http://localhost:4111/api | jq          # machine-readable index
+curl -s "http://localhost:4111/api/plans?zip=11201&age=40&sort=premium-asc&limit=5" \
+  | jq -r '.plans[] | "\(.carrierName) $\(.premiumCents/100) \(.planName)"'
+```
+
+`/api/plans`, `/api/plans/{hiosPlanId}`, `/api/market` and `/api/coverage` all
+take the same search parameters; `/api/providers`, `/api/drugs` and
+`/api/zip/{zip}` resolve the identifiers those parameters need. Every plan runs
+through the same services the web UI uses, so the API and the page cannot drift.
+
+Requests to `/api/*` and `/AGENTS_GUIDE.md` answer an unauthenticated caller
+with **401 JSON** rather than the login redirect, so a failed call never hands
+HTML to `jq`. Set `API_TOKENS` to let an agent off the IP allowlist in with
+`Authorization: Bearer <token>`.
+
 ## Gravie modifiers
 
 A modifier row's key columns — `hios_plan_id`, `carrier_id`, `state`,
@@ -223,8 +245,10 @@ without expiry.
 ## Layout
 
 ```
-proxy.ts                    IP allowlist → session → /login
+proxy.ts                    IP allowlist → bearer token → session → /login
 app/actions/                server actions (thin — validate and dispatch)
+app/api/                    REST route handlers (thin — validate and dispatch)
+app/lib/api/                query parsing, JSON shaping, the shared error envelope
 app/lib/services/           orchestration
 app/lib/repos/              every SQL statement
 app/lib/ideon/              Ideon HTTP client + response mapper

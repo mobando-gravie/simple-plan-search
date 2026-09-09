@@ -77,7 +77,7 @@ export const DEFAULT_CRITERIA: SearchCriteria = {
 }
 
 /** Cached zip → FIPS. Ideon requires fips_code on every plan search. */
-async function resolveZip(zip: string) {
+export async function resolveZip(zip: string) {
   const cached = await findZipCounty(zip)
   if (cached) return cached
   const fresh = await lookupZipCounty(zip)

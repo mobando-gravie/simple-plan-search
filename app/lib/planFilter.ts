@@ -2,15 +2,23 @@ import { countCovered, countInNetwork } from './ideon/coverage'
 import type { SelectedDrug, SelectedProvider } from './ideon/types'
 import type { PricedPlan } from './services/planSearch'
 
-export type SortKey =
-  | 'premium-asc'
-  | 'premium-desc'
-  | 'deductible-asc'
-  | 'deductible-desc'
-  | 'oopMax-asc'
-  | 'oopMax-desc'
-  | 'name'
-  | 'free-floor'
+/** Every ordering the app offers. The API validates against this list. */
+export const SORT_KEYS = [
+  'premium-asc',
+  'premium-desc',
+  'deductible-asc',
+  'deductible-desc',
+  'oopMax-asc',
+  'oopMax-desc',
+  'name',
+  'free-floor',
+] as const
+
+export type SortKey = (typeof SORT_KEYS)[number]
+
+export function isSortKey(raw: string): raw is SortKey {
+  return (SORT_KEYS as readonly string[]).includes(raw)
+}
 
 export type PlanFilterState = {
   search: string
@@ -101,6 +109,13 @@ function compareBy(key: SortKey, a: PricedPlan, b: PricedPlan, allowanceCents = 
 }
 
 /** The allowance is a search input, not a filter control, so it arrives separately. */
+/** Plan types and carriers are matched case-insensitively — `hmo` must find `HMO`. */
+function matches(selected: string[], value: string | null): boolean {
+  if (selected.length === 0) return true
+  const needle = (value ?? '').toLowerCase()
+  return selected.some((s) => s.toLowerCase() === needle)
+}
+
 export function applyPlanFilters(
   plans: PricedPlan[],
   f: PlanFilterState,
@@ -114,8 +129,8 @@ export function applyPlanFilters(
       if (!haystack.includes(needle)) return false
     }
     if (f.metalLevels.length > 0 && !f.metalLevels.includes(plan.metalLevel ?? '')) return false
-    if (f.planTypes.length > 0 && !f.planTypes.includes(plan.planType ?? '')) return false
-    if (f.carriers.length > 0 && !f.carriers.includes(plan.carrierName)) return false
+    if (!matches(f.planTypes, plan.planType)) return false
+    if (!matches(f.carriers, plan.carrierName)) return false
     if (f.hsaOnly && !plan.hsaEligible) return false
     // A null premium cannot be shown to satisfy a cap; treat it as failing.
     if (f.maxPremiumCents !== null) {
