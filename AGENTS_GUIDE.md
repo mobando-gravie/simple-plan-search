@@ -92,7 +92,7 @@ a RxCUI nor a med_id: `GET /api/drugs/{rxcui}` returns it as `drug.selector`.
 | `enrollment_date` | `YYYY-MM-DD` | first of next month | |
 | `providers` | NPI list | — | 10 digits each |
 | `drugs` | selector list | — | `medId_ndc`, or `r<rxcui>` for an unresolved id |
-| `q` | string | — | substring of plan name, carrier or HIOS id |
+| `q` | string | — | substring of plan name, carrier or HIOS id; `\|` separates alternatives (`A\|B` matches either) |
 | `metals` | enum list | all | `bronze` `expanded_bronze` `silver` `gold` `platinum` `catastrophic` |
 | `plan_types` | string list | all | e.g. `hmo,ppo,epo,pos`; `/api/market` reports what a zip actually has |
 | `carriers` | repeated string | all | `&carriers=Oscar&carriers=Ambetter` |

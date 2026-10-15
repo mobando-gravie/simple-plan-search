@@ -76,14 +76,14 @@ export default function PlanFilters({
 
   return (
     <div className={`space-y-4 p-4 ${CARD}`}>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field
-          label="Search"
-          type="search"
-          value={filters.search}
-          onChange={(e) => set('search', e.target.value)}
-          placeholder="plan, carrier or HIOS id"
-        />
+      <Field
+        label="Search"
+        type="search"
+        value={filters.search}
+        onChange={(e) => set('search', e.target.value)}
+        placeholder="plan, carrier or HIOS id — separate several with |"
+      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field
           label="Max premium"
           inputMode="numeric"

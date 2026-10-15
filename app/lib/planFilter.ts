@@ -122,11 +122,12 @@ export function applyPlanFilters(
   allowanceCents = 0,
   selected: { providers?: SelectedProvider[]; drugs?: SelectedDrug[] } = {},
 ): PricedPlan[] {
-  const needle = f.search.trim().toLowerCase()
+  // `|` separates alternatives, so several HIOS ids can be pasted at once.
+  const needles = f.search.toLowerCase().split('|').map((s) => s.trim()).filter(Boolean)
   const kept = plans.filter((plan) => {
-    if (needle) {
+    if (needles.length > 0) {
       const haystack = `${plan.planName} ${plan.carrierName} ${plan.hiosPlanId}`.toLowerCase()
-      if (!haystack.includes(needle)) return false
+      if (!needles.some((n) => haystack.includes(n))) return false
     }
     if (f.metalLevels.length > 0 && !f.metalLevels.includes(plan.metalLevel ?? '')) return false
     if (!matches(f.planTypes, plan.planType)) return false

@@ -85,6 +85,20 @@ test('search matches plan name, carrier and HIOS id', () => {
   assert.deepEqual(hits('nothing'), [])
 })
 
+test('search splits on | and keeps a plan matching any term', () => {
+  const plans = [
+    plan({ hiosPlanId: 'ZZZ111', planName: 'Alpha', carrierName: 'Oscar' }),
+    plan({ hiosPlanId: 'QQQ222', planName: 'Beta', carrierName: 'Molina' }),
+    plan({ hiosPlanId: 'WWW333', planName: 'Gamma', carrierName: 'Fidelis' }),
+  ]
+  const hits = (search: string) =>
+    applyPlanFilters(plans, { ...DEFAULT_FILTERS, search }).map((p) => p.hiosPlanId).sort()
+  assert.deepEqual(hits('ZZZ111|WWW333'), ['WWW333', 'ZZZ111'])
+  assert.deepEqual(hits(' zzz111 | qqq222 '), ['QQQ222', 'ZZZ111'])
+  assert.deepEqual(hits('|nothing||'), [])
+  assert.deepEqual(hits('|'), ['QQQ222', 'WWW333', 'ZZZ111'])
+})
+
 test('metal, type and carrier filters are OR within a group and AND across groups', () => {
   const plans = [
     plan({ hiosPlanId: 'A', metalLevel: 'bronze', carrierName: 'Oscar' }),
