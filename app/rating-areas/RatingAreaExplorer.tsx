@@ -6,8 +6,7 @@ import { Button } from '@/app/ui/Button'
 import { Field, Select } from '@/app/ui/Field'
 import { Muted } from '@/app/ui/Text'
 import { CODE, PANEL } from '@/app/ui/theme'
-
-type Mode = 'area' | 'zip' | 'county' | 'state'
+import { lookupQuery, type Lookup, type Mode } from './lookupParams'
 
 type County = { fips: string; name: string }
 type AreaResult = {
@@ -47,10 +46,12 @@ function withCsv(url: string): string {
   return url + (url.includes('?') ? '&' : '?') + 'format=csv'
 }
 
-export default function RatingAreaExplorer() {
-  const [mode, setMode] = useState<Mode>('area')
-  const [value, setValue] = useState('')
-  const [queryUrl, setQueryUrl] = useState<string | null>(null)
+export default function RatingAreaExplorer({ initial }: { initial?: Lookup | null }) {
+  const [mode, setMode] = useState<Mode>(initial?.mode ?? 'area')
+  const [value, setValue] = useState(initial?.value ?? '')
+  const [queryUrl, setQueryUrl] = useState<string | null>(
+    initial ? endpoint(initial.mode, initial.value) : null,
+  )
 
   // Both the state dropdown and the lookup go through the 48h IndexedDB cache.
   const states = useSwr<{ states: StateRow[] }>('/api/rating-areas').data?.states ?? []
@@ -59,7 +60,13 @@ export default function RatingAreaExplorer() {
 
   function open(nextMode: Mode, nextValue: string) {
     const v = nextValue.trim()
-    if (v) setQueryUrl(endpoint(nextMode, v))
+    if (!v) return
+    setQueryUrl(endpoint(nextMode, v))
+    // Reflect the lookup into the address bar so the link reproduces it; replace, not push,
+    // so repeated lookups and drill-downs don't pile up history entries.
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `?${lookupQuery(nextMode, v)}`)
+    }
   }
 
   function submit(e: React.FormEvent) {

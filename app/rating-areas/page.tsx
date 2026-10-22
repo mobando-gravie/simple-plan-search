@@ -1,8 +1,14 @@
 import { DATA } from '@/app/lib/services/ratingAreas'
 import { H1, PAGE_SUBTITLE } from '@/app/ui/theme'
+import { parseLookup } from './lookupParams'
 import RatingAreaExplorer from './RatingAreaExplorer'
 
-export default function RatingAreasPage() {
+export default async function RatingAreasPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const initial = parseLookup(await searchParams)
   return (
     <div className="space-y-8">
       <div>
@@ -12,7 +18,7 @@ export default function RatingAreasPage() {
           area. {DATA.source}, plan year {DATA.planYear}. Export any result as CSV.
         </p>
       </div>
-      <RatingAreaExplorer />
+      <RatingAreaExplorer initial={initial} />
     </div>
   )
 }
