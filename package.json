@@ -16,7 +16,6 @@
     "build-rating-areas": "tsx scripts/build-rating-areas.ts",
     "build-area-rates": "tsx scripts/build-area-rates.ts",
     "build-enrollment": "tsx scripts/build-enrollment.ts",
-    "build-county-enrollment": "tsx scripts/build-county-enrollment.ts",
     "build-service-areas": "tsx scripts/build-service-areas.ts"
   },
   "dependencies": {

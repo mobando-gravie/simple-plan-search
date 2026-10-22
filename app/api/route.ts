@@ -96,11 +96,6 @@ const ENDPOINTS = [
   },
   {
     method: 'GET',
-    path: '/api/county',
-    summary: 'CMS county marketplace landscape: issuers + enrollee demographics. ?fips= or ?zip=. FFM states only. ?format=csv.',
-  },
-  {
-    method: 'GET',
     path: '/api/plans/{hiosPlanId}/availability',
     summary: 'Counties a plan is sold in, from the CMS Service Area PUF (FFM states). ?format=csv.',
   },

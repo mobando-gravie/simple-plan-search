@@ -23,3 +23,5 @@ mytasks/
 
 # Local scratch — screenshots, throwaway output. Never committed.
 .tmp/
+.vercel
+.env*

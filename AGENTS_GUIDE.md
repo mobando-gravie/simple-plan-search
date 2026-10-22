@@ -63,7 +63,6 @@ Tokens are issued by the service owner; request one rather than guessing.
 | GET | `/api/rating-areas/{id}` | — | `ratingArea` (counties / zip3) |
 | GET | `/api/rating-areas/{id}/rates` | — | `years[]` cheapest + benchmark-silver curves (FFM) |
 | GET | `/api/enrollment` | — | state `total`, `metalMix`, `topPlans[]`, `topIssuers[]` (or overview) |
-| GET | `/api/county` | `fips` or `zip` | `county` issuers + demographics (FFM) |
 | GET | `/api/plans/{hiosPlanId}/availability` | — | `counties[]` the plan is sold in (FFM) |
 | POST | `/api/resolve` | body `{kind,ids}` | `resolved[]`, `unresolved[]` |
 
@@ -230,8 +229,8 @@ from the response. No `zip`/household needed, and no premiums here — this is g
 ## CMS historical / reference data
 
 Built from the CMS Marketplace public-use files, committed as static reference data (read the
-plan year from each response). No `zip`/household needed. **Coverage caveat:** the Rate PUF, the
-detailed county PUF, and the Service Area PUF are **HealthCare.gov (FFM) states only** — state-based
+plan year from each response). No `zip`/household needed. **Coverage caveat:** the Rate PUF and the
+Service Area PUF are **HealthCare.gov (FFM) states only** — state-based
 exchanges (CA, NY, MN, CO, WA, MA, PA, NJ, …) return 404 with a hint. Enrollment (`/api/enrollment`)
 covers FFM **and** SBE.
 
@@ -240,7 +239,6 @@ covers FFM **and** SBE.
 | premiums for a rating area over time | `GET /api/rating-areas/TX01/rates` → `{ratingArea, state, areaNumber, referenceAges, years[]{year, cheapestCents{age}, benchmarkSilverCents{age}}}` |
 | who sells the most plans in a state | `GET /api/enrollment?state=TX` → `{state, stateName, year, total, metalMix{metal}, topPlans[]{planId,name,issuer,metal,enrollment}, topIssuers[]}` (add `&year=2023`) |
 | the metal mix / market size by state | `GET /api/enrollment` → overview `{planYears, measure, states[]{state, stateName, latestYear, latestTotal}}` |
-| a county's issuers + demographics | `GET /api/county?fips=48201` or `?zip=77001` → `{planYear, county{fips, countyName, state, total, issuers[], demographics}}` |
 | where a plan is sold | `GET /api/plans/{hiosPlanId}/availability` → `{plan, state, serviceAreaId, planYear, counties[]{fips,name}}` |
 
 - Money is integer cents (`cheapestCents`, `benchmarkSilverCents`), same as everywhere else.
