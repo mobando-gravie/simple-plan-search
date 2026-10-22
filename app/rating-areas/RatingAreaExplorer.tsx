@@ -305,11 +305,12 @@ function CacheTag() {
   )
 }
 
+type Curve = Record<string, number>
 type RatesResult = {
   ratingArea: string
   source: string
   referenceAges: number[]
-  years: { year: number; cheapestCents: Record<string, number>; benchmarkSilverCents: Record<string, number> }[]
+  years: { year: number; cheapestCents: Curve; lowestSilverCents: Curve; benchmarkSilverCents: Curve }[]
 }
 
 type StateMarket = {
@@ -401,14 +402,18 @@ function AreaRatesPanel({ id }: { id: string }) {
   const current = data.years.find((y) => y.year === year) ?? latest
   const csvUrl = `/api/rating-areas/${encodeURIComponent(id)}/rates?format=csv`
   // The 40-year-old is the conventional reference point; shown large when the PUF has it.
-  const at40 = { cheapest: current.cheapestCents['40'], benchmark: current.benchmarkSilverCents['40'] }
+  const at40 = {
+    cheapest: current.cheapestCents['40'],
+    lowestSilver: current.lowestSilverCents['40'],
+    benchmark: current.benchmarkSilverCents['40'],
+  }
 
   return (
     <Panel
       as="h3"
       flush
       title={`Premiums · plan year ${current.year}`}
-      subtitle="Lowest-cost plan and the benchmark (2nd-lowest silver), non-tobacco sticker, by age."
+      subtitle="Lowest-cost plan, lowest silver, and the benchmark (2nd-lowest silver), non-tobacco sticker, by age."
       actions={
         <>
           <Select
@@ -430,6 +435,7 @@ function AreaRatesPanel({ id }: { id: string }) {
         <div className="px-4 pt-4 sm:px-6 sm:pt-5">
           <FigureStrip>
             <Figure label="Cheapest at 40" value={formatCents(at40.cheapest)} detail="per month" />
+            <Figure label="Lowest silver at 40" value={formatCents(at40.lowestSilver)} detail="per month" />
             <Figure label="Benchmark silver at 40" value={formatCents(at40.benchmark)} detail="per month" />
           </FigureStrip>
         </div>
@@ -446,6 +452,7 @@ function AreaRatesPanel({ id }: { id: string }) {
           </thead>
           <tbody className={DIVIDED_LIST}>
             <RateRow label="Cheapest" ages={data.referenceAges} curve={current.cheapestCents} />
+            <RateRow label="Lowest silver" ages={data.referenceAges} curve={current.lowestSilverCents} />
             <RateRow label="Benchmark silver" ages={data.referenceAges} curve={current.benchmarkSilverCents} />
           </tbody>
         </table>

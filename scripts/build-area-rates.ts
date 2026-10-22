@@ -58,10 +58,12 @@ const BENCHMARK_SQL = `
            ROW_NUMBER() OVER (PARTITION BY yr, st, ra, age ORDER BY cents) AS rn
     FROM sil
   )
-  SELECT yr, st, ra, age, cents FROM ranked WHERE rn = 2`
+  SELECT yr, st, ra, age, cents, rn FROM ranked WHERE rn <= 2`
 
 type Curve = Record<string, number>
-type AreaYear = { cheapestCents: Curve; benchmarkSilverCents: Curve }
+type SilverRow = Row & { rn: number }
+// lowestSilver = cheapest silver plan (rn 1); benchmarkSilver = second-lowest (rn 2, the SLCSP).
+type AreaYear = { cheapestCents: Curve; lowestSilverCents: Curve; benchmarkSilverCents: Curve }
 type AreaEntry = { state: string; areaNumber: number; years: Record<string, AreaYear> }
 
 function ensure(
@@ -73,7 +75,7 @@ function ensure(
 ): AreaYear {
   const areaNumber = Number(ra.match(/(\d+)/)?.[1] ?? 0)
   const a = (areas[id] ??= { state, areaNumber, years: {} })
-  return (a.years[String(yr)] ??= { cheapestCents: {}, benchmarkSilverCents: {} })
+  return (a.years[String(yr)] ??= { cheapestCents: {}, lowestSilverCents: {}, benchmarkSilverCents: {} })
 }
 
 function main() {
@@ -91,11 +93,13 @@ function main() {
     states.add(r.st)
   }
 
-  console.log('Scanning rate PUF for benchmark silver curves…')
-  for (const r of querySqlite<Row>(BENCHMARK_SQL)) {
+  console.log('Scanning rate PUF for silver curves (lowest + benchmark)…')
+  for (const r of querySqlite<SilverRow>(BENCHMARK_SQL)) {
     const id = areaId(r.st, r.ra)
     if (!id) continue
-    ensure(areas, id, r.st, r.ra, r.yr).benchmarkSilverCents[ageKey(r.age)] = r.cents
+    const y = ensure(areas, id, r.st, r.ra, r.yr)
+    const curve = r.rn === 1 ? y.lowestSilverCents : y.benchmarkSilverCents
+    curve[ageKey(r.age)] = r.cents
   }
 
   const planYears = [...years].sort((a, b) => a - b)
