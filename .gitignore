@@ -25,3 +25,6 @@ mytasks/
 .tmp/
 .vercel
 .env*
+
+# Agent worktrees (isolated subagent checkouts)
+.claude/worktrees/
