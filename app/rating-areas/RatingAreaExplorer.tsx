@@ -151,7 +151,7 @@ function ResultView({
     )
   }
 
-  const cacheTag = fromCache ? <span className="text-ink-30"> · cached</span> : null
+  const cacheTag = fromCache ? <span className="text-ink-30"> **</span> : null
 
   if ('ratingArea' in result && 'counties' in result.ratingArea) {
     const a = result.ratingArea
