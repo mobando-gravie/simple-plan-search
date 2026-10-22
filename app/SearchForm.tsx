@@ -21,10 +21,13 @@ import {
 import { encodeCriteria } from '@/app/lib/urlState'
 import PlanResults from '@/app/PlanResults'
 import { Button, IconButton } from '@/app/ui/Button'
+import { Chip } from '@/app/ui/Chip'
 import { BORDER, TEXT } from '@/app/ui/colors'
 import { CheckboxRow, Field } from '@/app/ui/Field'
+import { PageHeader } from '@/app/ui/PageHeader'
+import { Muted } from '@/app/ui/Text'
 import { useAsyncAction } from '@/app/ui/useAsyncAction'
-import { BANNER_ERROR, CARD, DIVIDED_TOP, MUTED, PANEL } from '@/app/ui/theme'
+import { BANNER_ERROR, CARD, DIVIDED_TOP, EYEBROW, PANEL, SECTION_TITLE } from '@/app/ui/theme'
 
 /** A runaway-click guard, not a domain rule. */
 const MAX_CHILDREN = 10
@@ -32,6 +35,16 @@ const MAX_CHILDREN = 10
 /** One card per person. Identity comes from the field label, not a separate title. */
 const PERSON_CARD = `${CARD} bg-brown-gravie-5 p-4`
 const ADD_CARD = `flex flex-col items-start justify-center gap-2 rounded-sm border border-dashed ${BORDER.subtle} p-4`
+
+/** Groups the form into three scannable bands; the eyebrow is the only chrome. */
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="min-w-0">
+      <legend className={`mb-3 ${EYEBROW}`}>{title}</legend>
+      {children}
+    </fieldset>
+  )
+}
 
 type ChildRow = { id: number; age: string }
 
@@ -172,17 +185,24 @@ export default function SearchForm({
   const banner = error ?? refreshError
 
   return (
-    <div className="space-y-8">
-      <form onSubmit={submit} className={`${PANEL} ${collapsed ? 'py-4' : 'space-y-6'}`}>
+    <div className="space-y-6 sm:space-y-8">
+      {!criteria && (
+        <PageHeader title="Plan search">
+          Priced individual-market plans for a household, with Gravie modifiers applied. Add
+          providers and prescriptions to see what each plan covers.
+        </PageHeader>
+      )}
+
+      <form onSubmit={submit} className={`${PANEL} ${collapsed ? 'py-3 sm:py-4' : 'space-y-6'}`}>
         {criteria && (
           <button
             type="button"
             onClick={() => setCollapsed((c) => !c)}
             aria-expanded={!collapsed}
-            className="flex w-full items-center gap-2 text-left"
+            className="flex min-h-9 w-full items-center gap-3 rounded-xs text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-50"
           >
-            <span className={`text-header-h5 uppercase ${TEXT.muted}`}>Search</span>
-            <span className={`min-w-0 flex-1 truncate text-paragraph-small ${TEXT.body}`}>
+            <span className={`shrink-0 ${EYEBROW}`}>Search</span>
+            <span className={`min-w-0 flex-1 text-paragraph-small ${TEXT.body} line-clamp-2`}>
               {summary}
             </span>
             <span
@@ -196,7 +216,8 @@ export default function SearchForm({
 
         {/* `hidden` rather than unmounting: the inputs must stay in the form or a
             collapsed submit would send an empty household. */}
-        <div hidden={collapsed} className="space-y-6">
+        <div hidden={collapsed} className={`space-y-6 ${criteria ? `pt-5 ${DIVIDED_TOP}` : ''}`}>
+        <FormSection title="Where and how much">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {/* Keyed on the URL's criteria so a Back navigation re-seeds the field
               rather than leaving the previous typing in place. */}
@@ -231,7 +252,9 @@ export default function SearchForm({
             defaultValue={centsToDollarString(criteria?.allowanceCents)}
           />
         </div>
+        </FormSection>
 
+        <FormSection title="Household">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className={PERSON_CARD}>
             <Field
@@ -331,8 +354,10 @@ export default function SearchForm({
             )}
           </div>
         </div>
+        </FormSection>
 
-        <div className={`grid grid-cols-1 gap-4 pt-5 lg:grid-cols-2 ${DIVIDED_TOP}`}>
+        <FormSection title="Care to check coverage for">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
           <EntitySearch<ProviderHit, SelectedProvider>
             label="Providers"
             placeholder="Search doctors by name…"
@@ -392,8 +417,10 @@ export default function SearchForm({
             }
           />
         </div>
+        </FormSection>
 
-        <div className={`flex justify-end gap-2 pt-5 ${DIVIDED_TOP}`}>
+        {/* Stacked and reversed on phones so the primary action sits at the thumb. */}
+        <div className={`flex flex-col-reverse gap-2 pt-5 sm:flex-row sm:justify-end ${DIVIDED_TOP}`}>
           {dirty && (
             // mr-auto rather than justify-between: the other two must stay together
             // on the right when this one is not rendered.
@@ -402,51 +429,60 @@ export default function SearchForm({
               variant="textDestructive"
               onClick={clearAll}
               disabled={busy}
-              className="mr-auto"
+              className="sm:mr-auto"
             >
               <X />
               Clear all
             </Button>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={refresh}
-            pending={refreshAction.pending}
-            pendingLabel="Refreshing…"
-            disabled={busy || !criteria}
-          >
-            <RotateCw />
-            Refresh from Ideon
-          </Button>
+          {criteria && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={refresh}
+              pending={refreshAction.pending}
+              pendingLabel="Refreshing…"
+              disabled={busy}
+            >
+              <RotateCw />
+              Refresh from Ideon
+            </Button>
+          )}
           <Button
             type="submit"
             pending={searchAction.pending}
             pendingLabel="Searching…"
             disabled={busy}
-            className="px-6"
+            className="sm:px-6"
           >
             <Search />
-            Search
+            Search plans
           </Button>
           </div>
         </div>
       </form>
 
-      {banner && <p className={BANNER_ERROR}>{banner}</p>}
+      {banner && (
+        <p role="alert" className={BANNER_ERROR}>
+          {banner}
+        </p>
+      )}
 
       {result && criteria && (
         <div className="space-y-4">
-          <div className={`flex flex-wrap gap-x-6 gap-y-1 ${MUTED}`}>
-            <span>
-              <strong className={`font-bold ${TEXT.heading}`}>{result.meta.total}</strong> plans in{' '}
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <h2 className={SECTION_TITLE}>
+              {result.meta.total} {plural(result.meta.total, 'plan', 'plans')} in{' '}
               {result.meta.countyName ?? result.meta.fipsCode}, {result.meta.state}
-            </span>
-            <span>
-              <strong className={`font-bold ${TEXT.heading}`}>{result.meta.modifiersApplied}</strong>{' '}
-              of {result.plans.length} carry a Gravie modifier
-            </span>
-            {result.cache.hit && <span>cached {minutesAgo(result.cache.ageSeconds)} min ago</span>}
+            </h2>
+            <Muted as="span">
+              {result.meta.modifiersApplied} of {result.plans.length} carry a Gravie modifier
+            </Muted>
+            {result.cache.hit && (
+              <Chip tone="brown" className="font-normal">
+                cached {minutesAgo(result.cache.ageSeconds)} min ago
+              </Chip>
+            )}
           </div>
           {/* Remounted per search so the filters re-seed from the URL rather than
               carrying over a selection the new result set may not contain. */}

@@ -1,6 +1,7 @@
 import { listBatches } from '@/app/lib/services/modifierService'
 import { Muted } from '@/app/ui/Text'
-import { CODE, CODE_BLOCK, H1, PAGE_SUBTITLE, PANEL } from '@/app/ui/theme'
+import { PageHeader } from '@/app/ui/PageHeader'
+import { CODE, CODE_BLOCK, PANEL } from '@/app/ui/theme'
 import BatchList from './BatchList'
 import UploadForm from './UploadForm'
 
@@ -16,14 +17,11 @@ export default async function ModifiersPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className={H1}>Gravie modifiers</h1>
-        <p className={PAGE_SUBTITLE}>
-          Each row applies <code className={CODE}>round(ideon × multiplier) + flat</code>. Blank
-          key columns match anything; the most specific matching row wins. Importing a CSV
-          deactivates every earlier batch.
-        </p>
-      </div>
+      <PageHeader title="Gravie modifiers">
+        Each row applies <code className={CODE}>round(ideon × multiplier) + flat</code>. Blank
+        key columns match anything; the most specific matching row wins. Importing a CSV
+        deactivates every earlier batch.
+      </PageHeader>
 
       <UploadForm />
 

@@ -23,24 +23,25 @@ export default function UploadForm() {
 
   return (
     <div className={`${PANEL} space-y-4`}>
-      <form action={action} className="flex flex-wrap items-end gap-4">
-        <label className="block">
+      <form action={action} className="grid grid-cols-1 gap-4 sm:flex sm:flex-wrap sm:items-end">
+        <label className="block min-w-0">
           <span className={LABEL}>CSV file</span>
-          <input type="file" name="file" accept=".csv,text/csv" required className={FILE_INPUT} />
+          <input type="file" name="file" accept=".csv,text/csv" required className={`block max-w-full ${FILE_INPUT}`} />
         </label>
-        <Field
-          label="Note"
-          name="note"
-          placeholder="e.g. 2026 rates pulled from qa-main plancatalog"
-          className="grow"
-        />
-        <Button type="submit" pending={pending} pendingLabel="Importing…" className="px-6">
+        <div className="min-w-0 sm:flex-1 sm:basis-64">
+          <Field label="Note" name="note" placeholder="e.g. 2026 rates pulled from qa-main plancatalog" />
+        </div>
+        <Button type="submit" pending={pending} pendingLabel="Importing…" className="w-full sm:w-auto sm:px-6">
           <Upload />
           Import
         </Button>
       </form>
 
-      {state?.message && <p className={BANNER_SUCCESS}>{state.message}</p>}
+      {state?.message && (
+        <p role="status" className={BANNER_SUCCESS}>
+          {state.message}
+        </p>
+      )}
 
       {state && state.unmappedColumns.length > 0 && (
         <Muted size="xs">Ignored unrecognized columns: {state.unmappedColumns.join(', ')}</Muted>

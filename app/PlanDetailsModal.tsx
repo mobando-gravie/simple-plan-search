@@ -16,18 +16,21 @@ import { formatCents } from '@/app/lib/money'
 import { sbcUrl } from '@/app/lib/planBenefits'
 import type { PricedPlan } from '@/app/lib/services/planSearch'
 import { Button, IconButton } from '@/app/ui/Button'
-import { BG, TEXT } from '@/app/ui/colors'
+import { BG, BORDER, TEXT } from '@/app/ui/colors'
 import { DocLink } from '@/app/ui/DocLink'
+import { Figure, FigureStrip } from '@/app/ui/Figure'
 import { Muted } from '@/app/ui/Text'
 import {
   CARD_HEADER,
   DIVIDED_LIST,
   FAINT,
-  DIVIDED_TOP,
+  LINK,
   MUTED,
   MUTED_XS,
   SECTION_TITLE,
 } from '@/app/ui/theme'
+
+const MODAL_PAD = 'px-4 sm:px-6'
 
 /** What gates the prescription beyond the tier. All three are what Ideon reports. */
 function requirementsOf(cover: DrugCoverage): string[] {
@@ -57,24 +60,15 @@ function BenefitTable({
   }
   return (
     <ul className={DIVIDED_LIST}>
-      {values.map((v, i) => (
-        <li
-          key={v.label}
-          className={`grid grid-cols-1 gap-1 px-3 py-3 sm:grid-cols-2 ${
-            i % 2 === 1 ? 'bg-brown-gravie-5' : ''
-          }`}
-        >
-          <span className={`text-paragraph-regular ${TEXT.body}`}>{v.label}</span>
-          <span className={`text-paragraph-small ${TEXT.heading}`}>
-            <span className="block">
-              <span className={TEXT.muted}>In Network · </span>
-              {v.inNetwork}
-            </span>
-            <span className="block">
-              <span className={TEXT.muted}>Out of Network · </span>
-              {v.outOfNetwork}
-            </span>
-          </span>
+      {values.map((v) => (
+        <li key={v.label} className="grid grid-cols-1 gap-x-6 gap-y-1 py-3 sm:grid-cols-[1fr_1fr]">
+          <span className={`min-w-0 text-paragraph-regular ${TEXT.body}`}>{v.label}</span>
+          <dl className={`grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-paragraph-small ${TEXT.heading}`}>
+            <dt className={`whitespace-nowrap ${TEXT.muted}`}>In network</dt>
+            <dd className="min-w-0">{v.inNetwork}</dd>
+            <dt className={`whitespace-nowrap ${TEXT.muted}`}>Out of network</dt>
+            <dd className="min-w-0">{v.outOfNetwork}</dd>
+          </dl>
         </li>
       ))}
     </ul>
@@ -110,7 +104,7 @@ function AvailabilitySection({ hiosPlanId }: { hiosPlanId: string }) {
         ))}
       </div>
       {data.counties.length > 12 && (
-        <button type="button" onClick={() => setExpanded((v) => !v)} className={`text-paragraph-small ${TEXT.accent} underline`}>
+        <button type="button" onClick={() => setExpanded((v) => !v)} className={`text-paragraph-small ${LINK}`}>
           {expanded ? 'Show fewer' : `Show all ${data.counties.length}`}
         </button>
       )}
@@ -152,21 +146,40 @@ export default function PlanDetailsModal({
       onClick={(e) => {
         if (e.target === ref.current) onClose()
       }}
-      className={`m-auto w-full max-w-3xl rounded-sm ${BG.surface} p-0 backdrop:bg-ink-60/40`}
+      aria-labelledby="plan-details-title"
+      className={`m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto rounded-sm ${BG.surface} p-0 backdrop:bg-ink-60/40`}
     >
-      <div className={`sticky top-0 items-start px-6 py-4 ${CARD_HEADER}`}>
+      <div className={`sticky top-0 z-10 items-start py-4 ${MODAL_PAD} ${CARD_HEADER}`}>
         <div className="min-w-0 flex-1">
-          <h2 className={SECTION_TITLE}>{plan.planName}</h2>
+          <h2 id="plan-details-title" className={`text-header-h4 sm:text-header-h3 ${TEXT.heading}`}>
+            {plan.planName}
+          </h2>
           <Muted>
             {plan.carrierName} · <span className="font-mono">{plan.hiosPlanId}</span>
           </Muted>
         </div>
-        <IconButton label="Close" size="lg" onClick={onClose}>
+        <IconButton label="Close" size="lg" onClick={onClose} className="-mr-1.5">
           <X />
         </IconButton>
       </div>
 
-      <div className="space-y-8 px-6 py-6">
+      <div className={`space-y-8 py-6 ${MODAL_PAD}`}>
+        <section className={`rounded-sm border p-4 ${BORDER.subtle}`}>
+          <h3 className="sr-only">Cost sharing</h3>
+          <FigureStrip>
+            <Figure
+              label="Deductible"
+              value={formatCents(plan.deductibleIndividualCents)}
+              detail={`per person · ${formatCents(plan.deductibleFamilyCents)} household`}
+            />
+            <Figure
+              label="Out-of-pocket max"
+              value={formatCents(plan.outOfPocketMaxIndividualCents)}
+              detail={`per person · ${formatCents(plan.outOfPocketMaxFamilyCents)} household`}
+            />
+          </FigureStrip>
+        </section>
+
         {(sbc || plan.formularyUrl) && (
           <section className="space-y-3">
             <h3 className={SECTION_TITLE}>Documents</h3>
@@ -275,23 +288,12 @@ export default function PlanDetailsModal({
           <BenefitTable benefits={plan.benefits} rows={ADDITIONAL_COVERAGES} />
         </section>
 
-        <section className={`space-y-1 pt-4 ${DIVIDED_TOP}`}>
-          <h3 className={SECTION_TITLE}>Cost sharing</h3>
-          <Muted className="tnum">
-            Deductible {formatCents(plan.deductibleIndividualCents)} / person ·{' '}
-            {formatCents(plan.deductibleFamilyCents)} / household
-          </Muted>
-          <Muted className="tnum">
-            Max OOP {formatCents(plan.outOfPocketMaxIndividualCents)} / person ·{' '}
-            {formatCents(plan.outOfPocketMaxFamilyCents)} / household
-          </Muted>
-        </section>
+      </div>
 
-        <div className="flex justify-end">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </div>
+      <div className={`sticky bottom-0 flex justify-end border-t py-3 ${MODAL_PAD} ${BORDER.subtle} ${BG.surface}`}>
+        <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
+          Close
+        </Button>
       </div>
     </dialog>
   )

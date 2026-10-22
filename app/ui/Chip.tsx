@@ -1,7 +1,7 @@
 import { X } from 'lucide-react'
 import type { CoverageMatch } from '@/app/lib/ideon/coverage'
 import { isMetalLevel } from '@/app/lib/metal'
-import { BG, BORDER, HOVER, TEXT } from './colors'
+import { BG, BORDER, FOCUS_RING, HOVER, TEXT } from './colors'
 import { cx } from './cx'
 import { CHIP } from './theme'
 
@@ -63,7 +63,7 @@ export function ToggleChip({
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={cx(CHIP, 'transition-colors', on ? CHIP_TONES.orange : TOGGLE_OFF, className)}
+      className={cx(CHIP, 'min-h-7 transition-colors', FOCUS_RING, on ? CHIP_TONES.orange : TOGGLE_OFF, className)}
     >
       {children}
     </button>
@@ -79,7 +79,7 @@ export function RemovableChip({ label, onRemove }: { label: string; onRemove: ()
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${label}`}
-        className={cx('transition-colors', HOVER.danger, '[&_svg]:size-3')}
+        className={cx('-mr-1 rounded-xs p-0.5 transition-colors', HOVER.danger, FOCUS_RING, '[&_svg]:size-3')}
       >
         <X />
       </button>

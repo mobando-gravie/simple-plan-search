@@ -1,13 +1,26 @@
 'use client'
-import { Check, Copy, Search } from 'lucide-react'
+import { ArrowRight, Check, Copy, Download, MapPinned, Search } from 'lucide-react'
 import { useState } from 'react'
 import { formatCents } from '@/app/lib/money'
 import { useSwr } from '@/app/lib/swr/useSwr'
-import { Button } from '@/app/ui/Button'
+import { Button, ButtonLink } from '@/app/ui/Button'
+import { FOCUS_RING, HOVER, TEXT } from '@/app/ui/colors'
 import { cx } from '@/app/ui/cx'
 import { Field, Select } from '@/app/ui/Field'
-import { Muted } from '@/app/ui/Text'
-import { CODE, PANEL } from '@/app/ui/theme'
+import { Figure, FigureStrip } from '@/app/ui/Figure'
+import { Panel } from '@/app/ui/Panel'
+import { EmptyPanel, ErrorState, LoadingState, Muted } from '@/app/ui/Text'
+import {
+  CODE,
+  DIVIDED_LIST,
+  PANEL,
+  TD_DENSE,
+  TD_NUM,
+  TD_STICKY,
+  TH_DENSE,
+  THEAD,
+  TILE,
+} from '@/app/ui/theme'
 import { lookupQuery, type Lookup, type Mode } from './lookupParams'
 
 type County = { fips: string; name: string }
@@ -37,6 +50,14 @@ const PROMPT: Record<Mode, string> = {
   state: 'State',
 }
 
+/** One of each lookup, for the blank slate. */
+const EXAMPLES: { mode: Mode; value: string; label: string }[] = [
+  { mode: 'area', value: 'MN07', label: 'Rating area MN07' },
+  { mode: 'zip', value: '55401', label: 'ZIP 55401' },
+  { mode: 'county', value: '27053', label: 'County FIPS 27053' },
+  { mode: 'state', value: 'MN', label: 'All of Minnesota' },
+]
+
 /** The JSON endpoint for the current query; the CSV download is the same plus format=csv. */
 function endpoint(mode: Mode, value: string): string {
   const v = value.trim()
@@ -47,6 +68,8 @@ function endpoint(mode: Mode, value: string): string {
 function withCsv(url: string): string {
   return url + (url.includes('?') ? '&' : '?') + 'format=csv'
 }
+
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 export default function RatingAreaExplorer({ initial }: { initial?: Lookup | null }) {
   const [mode, setMode] = useState<Mode>(initial?.mode ?? 'area')
@@ -71,6 +94,12 @@ export default function RatingAreaExplorer({ initial }: { initial?: Lookup | nul
     }
   }
 
+  function pick(nextMode: Mode, nextValue: string) {
+    setMode(nextMode)
+    setValue(nextValue)
+    open(nextMode, nextValue)
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault()
     open(mode, mode === 'state' && !value ? states[0]?.state ?? '' : value)
@@ -78,7 +107,10 @@ export default function RatingAreaExplorer({ initial }: { initial?: Lookup | nul
 
   return (
     <div className="space-y-6">
-      <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
+      <form
+        onSubmit={submit}
+        className={`${PANEL} grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end`}
+      >
         <Select
           label="Look up by"
           value={mode}
@@ -86,7 +118,7 @@ export default function RatingAreaExplorer({ initial }: { initial?: Lookup | nul
             setMode(e.target.value as Mode)
             setValue('')
           }}
-          className="w-44"
+          width="w-full sm:w-44"
         >
           <option value="area">Rating area</option>
           <option value="zip">ZIP code</option>
@@ -95,7 +127,12 @@ export default function RatingAreaExplorer({ initial }: { initial?: Lookup | nul
         </Select>
 
         {mode === 'state' ? (
-          <Select label="State" value={value} onChange={(e) => setValue(e.target.value)} className="w-56">
+          <Select
+            label="State"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            width="w-full sm:w-64"
+          >
             <option value="">Choose a state…</option>
             {states.map((s) => (
               <option key={s.state} value={s.state}>
@@ -109,25 +146,44 @@ export default function RatingAreaExplorer({ initial }: { initial?: Lookup | nul
             value={value}
             onChange={(e) => setValue(e.target.value)}
             icon={<Search />}
-            width="w-64"
+            width="w-full sm:w-64"
+            autoComplete="off"
           />
         )}
 
-        <Button type="submit" pending={pending} pendingLabel="Looking up…">
+        <Button type="submit" pending={pending} pendingLabel="Looking up…" className="w-full sm:w-auto">
+          <Search />
           Look up
         </Button>
         {csvUrl && (
-          <a href={csvUrl} download className="ml-auto self-center text-paragraph-small text-brand-60 underline">
+          <ButtonLink href={csvUrl} download className="w-full sm:ml-auto sm:w-auto">
+            <Download />
             Export CSV
-          </a>
+          </ButtonLink>
         )}
       </form>
+
+      {!queryUrl && (
+        <EmptyPanel
+          icon={<MapPinned />}
+          title="Look up a rating area"
+          actions={EXAMPLES.map((ex) => (
+            <Button key={ex.value} type="button" variant="outline" onClick={() => pick(ex.mode, ex.value)}>
+              {ex.label}
+            </Button>
+          ))}
+        >
+          Start from an area id, a ZIP, a county FIPS, or a whole state. Try one of these:
+        </EmptyPanel>
+      )}
+
+      {pending && !result && <LoadingState>Looking up…</LoadingState>}
 
       {result && (
         <ResultView
           result={result}
           fromCache={source === 'cache'}
-          onOpenArea={(id) => { setMode('area'); setValue(id); open('area', id) }}
+          onOpenArea={(id) => pick('area', id)}
         />
       )}
     </div>
@@ -143,47 +199,43 @@ function ResultView({
   fromCache: boolean
   onOpenArea: (id: string) => void
 }) {
-  if (result.error) {
-    return (
-      <div className={PANEL}>
-        <p className="text-paragraph-regular font-bold">{result.error}</p>
-        {result.hint && <Muted className="mt-1">{result.hint}</Muted>}
-      </div>
-    )
-  }
+  if (result.error) return <ErrorState message={result.error} hint={result.hint} />
 
-  const cacheTag = fromCache ? <span className="text-ink-30"> **</span> : null
+  const cacheTag = fromCache ? <CacheTag /> : null
 
   if ('ratingArea' in result && 'counties' in result.ratingArea) {
     const a = result.ratingArea
+    const byCounty = a.counties.length > 0
     return (
       <div className="space-y-6">
-        <ResultPanel data={result}>
-          <h2 className="text-header-h4 font-black">
-            {a.id} — {a.stateName}, Rating Area {a.areaNumber}
-          </h2>
-          <Muted className="mt-1">
-            {a.counties.length > 0
-              ? `${a.counties.length} ${a.counties.length === 1 ? 'county' : 'counties'}`
-              : `${a.zip3.length} ZIP prefixes`}
-            {cacheTag}
-          </Muted>
-          {a.counties.length > 0 ? (
-            <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3">
+        <Panel
+          title={a.id}
+          subtitle={
+            <>
+              {a.stateName} · Rating Area {a.areaNumber} ·{' '}
+              {byCounty ? count(a.counties.length, 'county', 'counties') : count(a.zip3.length, 'ZIP prefix', 'ZIP prefixes')}
+              {cacheTag}
+            </>
+          }
+          actions={<CopyJsonButton data={result} />}
+        >
+          {byCounty ? (
+            <ul className="grid grid-cols-2 gap-x-6 gap-y-1.5 md:grid-cols-3 lg:grid-cols-4">
               {a.counties.map((c) => (
-                <li key={c.fips} className="text-paragraph-small">
-                  {c.name} <span className="text-ink-30">· {c.fips}</span>
+                <li key={c.fips} className={`min-w-0 text-paragraph-small ${TEXT.body}`}>
+                  {c.name}{' '}
+                  <span className={`tnum whitespace-nowrap ${TEXT.faint}`}>· {c.fips}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-paragraph-small">
+            <p className="flex flex-wrap gap-1.5">
               {a.zip3.map((z) => (
-                <code key={z} className={`${CODE} mr-1`}>{z}xx</code>
+                <code key={z} className={CODE}>{z}xx</code>
               ))}
             </p>
           )}
-        </ResultPanel>
+        </Panel>
         <AreaRatesPanel id={a.id} />
       </div>
     )
@@ -191,47 +243,64 @@ function ResultView({
 
   if ('areas' in result) {
     return (
-      <ResultPanel data={result}>
-        <h2 className="text-header-h4 font-black">
-          {result.stateName} ({result.state}) — {result.areas.length} rating areas
-        </h2>
-        <Muted className="mt-1">Area definition: {result.basis}. Open one for its counties.{cacheTag}</Muted>
-        <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <Panel
+        title={`${result.stateName} (${result.state})`}
+        subtitle={
+          <>
+            {count(result.areas.length, 'rating area', 'rating areas')} · area definition: {result.basis}. Open one for its counties.
+            {cacheTag}
+          </>
+        }
+        actions={<CopyJsonButton data={result} />}
+      >
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {result.areas.map((a) => (
             <li key={a.id}>
-              <button
-                type="button"
-                onClick={() => onOpenArea(a.id)}
-                className="w-full rounded-sm border border-ink-10 px-3 py-2 text-left text-paragraph-small hover:border-brand-60"
-              >
-                <span className="font-bold">{a.id}</span>
-                <span className="text-ink-30"> · {a.countyCount} counties</span>
+              <button type="button" onClick={() => onOpenArea(a.id)} className={TILE}>
+                <span className={`block font-bold ${TEXT.heading}`}>{a.id}</span>
+                <span className={`block ${TEXT.muted}`}>{count(a.countyCount, 'county', 'counties')}</span>
               </button>
             </li>
           ))}
         </ul>
-      </ResultPanel>
+      </Panel>
     )
   }
 
   const r = result as ReverseResult
   return (
-    <ResultPanel data={result}>
-      <h2 className="text-header-h4 font-black">
-        {r.county.name}, {r.state} → {r.ratingArea.id}
-      </h2>
-      <Muted className="mt-1">
-        {r.zip ? `ZIP ${r.zip}` : `County ${r.countyFips}`} · FIPS {r.county.fips} · Rating Area {r.ratingArea.areaNumber}
-        {cacheTag}
-      </Muted>
-      <button
-        type="button"
-        onClick={() => onOpenArea(r.ratingArea.id)}
-        className="mt-3 text-paragraph-small text-brand-60 underline"
-      >
-        View all counties in {r.ratingArea.id}
-      </button>
-    </ResultPanel>
+    <Panel
+      title={`${r.county.name}, ${r.state}`}
+      subtitle={
+        <>
+          {r.zip ? `ZIP ${r.zip}` : `County ${r.countyFips}`} · FIPS {r.county.fips}
+          {cacheTag}
+        </>
+      }
+      actions={<CopyJsonButton data={result} />}
+    >
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <Figure
+          label="Rating area"
+          value={r.ratingArea.id}
+          detail={`${r.ratingArea.stateName ?? r.state} · Rating Area ${r.ratingArea.areaNumber}`}
+        />
+        <Button type="button" variant="outline" onClick={() => onOpenArea(r.ratingArea.id)}>
+          All counties in {r.ratingArea.id}
+          <ArrowRight />
+        </Button>
+      </div>
+    </Panel>
+  )
+}
+
+/** The terse cache marker, kept from before; the title says what it means. */
+function CacheTag() {
+  return (
+    <span className={TEXT.faint} title="Served from the local cache">
+      {' '}
+      **
+    </span>
   )
 }
 
@@ -247,84 +316,93 @@ function AreaRatesPanel({ id }: { id: string }) {
   const { data, pending, error } = useSwr<RatesResult>(`/api/rating-areas/${encodeURIComponent(id)}/rates`)
   const [year, setYear] = useState<number | null>(null)
 
-  if (pending && !data) return null
+  if (pending && !data) return <LoadingState>Loading premiums…</LoadingState>
   if (error || !data || data.years.length === 0) {
     return (
-      <div className={PANEL}>
-        <h3 className="text-paragraph-regular font-bold">Premiums</h3>
-        <Muted className="mt-1">
-          No CMS premium data — the federal Rate PUF covers HealthCare.gov states only.
-        </Muted>
-      </div>
+      <Panel title="Premiums" as="h3">
+        <Muted>No CMS premium data — the federal Rate PUF covers HealthCare.gov states only.</Muted>
+      </Panel>
     )
   }
 
   const latest = data.years[data.years.length - 1]
   const current = data.years.find((y) => y.year === year) ?? latest
   const csvUrl = `/api/rating-areas/${encodeURIComponent(id)}/rates?format=csv`
+  // The 40-year-old is the conventional reference point; shown large when the PUF has it.
+  const at40 = { cheapest: current.cheapestCents['40'], benchmark: current.benchmarkSilverCents['40'] }
 
   return (
-    <ResultPanel data={data}>
-      <div className="flex flex-wrap items-baseline justify-between gap-2 pr-8">
-        <h3 className="text-paragraph-regular font-bold">Premiums · plan year {current.year}</h3>
-        <Select
-          label="Year"
-          value={current.year}
-          onChange={(e) => setYear(Number(e.target.value))}
-          className="w-28"
-        >
-          {[...data.years].reverse().map((y) => (
-            <option key={y.year} value={y.year}>{y.year}</option>
-          ))}
-        </Select>
-      </div>
-      <Muted className="mt-1">Lowest-cost plan and the benchmark (2nd-lowest silver), non-tobacco sticker, by age.</Muted>
+    <Panel
+      as="h3"
+      flush
+      title={`Premiums · plan year ${current.year}`}
+      subtitle="Lowest-cost plan and the benchmark (2nd-lowest silver), non-tobacco sticker, by age."
+      actions={
+        <>
+          <Select
+            label="Year"
+            value={current.year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            width="w-28"
+            className="h-9"
+          >
+            {[...data.years].reverse().map((y) => (
+              <option key={y.year} value={y.year}>{y.year}</option>
+            ))}
+          </Select>
+          <CopyJsonButton data={data} className="self-end" />
+        </>
+      }
+    >
+      {at40.cheapest != null && at40.benchmark != null && (
+        <div className="px-4 pt-4 sm:px-6 sm:pt-5">
+          <FigureStrip>
+            <Figure label="Cheapest at 40" value={formatCents(at40.cheapest)} detail="per month" />
+            <Figure label="Benchmark silver at 40" value={formatCents(at40.benchmark)} detail="per month" />
+          </FigureStrip>
+        </div>
+      )}
       <div className="mt-4 overflow-x-auto">
-        <table className="w-full text-paragraph-small tnum">
-          <thead>
-            <tr className="text-left text-ink-30">
-              <th className="py-1 pr-4 font-normal">Age</th>
+        <table className="w-full text-paragraph-small">
+          <thead className={THEAD}>
+            <tr>
+              <th scope="col" className={cx(TH_DENSE, TD_STICKY, 'pl-4 sm:pl-6')}>Age</th>
               {data.referenceAges.map((age) => (
-                <th key={age} className="px-2 py-1 text-right font-normal">{age}</th>
+                <th key={age} scope="col" className={cx(TH_DENSE, 'text-right')}>{age}</th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className={DIVIDED_LIST}>
             <RateRow label="Cheapest" ages={data.referenceAges} curve={current.cheapestCents} />
             <RateRow label="Benchmark silver" ages={data.referenceAges} curve={current.benchmarkSilverCents} />
           </tbody>
         </table>
       </div>
-      <a href={csvUrl} download className="mt-4 inline-block text-paragraph-small text-brand-60 underline">
-        Export all years (CSV)
-      </a>
-    </ResultPanel>
+      <div className="px-4 py-4 sm:px-6">
+        <ButtonLink href={csvUrl} download variant="text" className="-ml-3">
+          <Download />
+          Export all years (CSV)
+        </ButtonLink>
+      </div>
+    </Panel>
   )
 }
 
 function RateRow({ label, ages, curve }: { label: string; ages: number[]; curve: Record<string, number> }) {
   return (
-    <tr className="border-t border-ink-10">
-      <td className="py-2 pr-4 font-bold">{label}</td>
+    <tr>
+      <th scope="row" className={cx(TD_DENSE, TD_STICKY, `whitespace-nowrap pl-4 text-left font-bold sm:pl-6 ${TEXT.heading}`)}>
+        {label}
+      </th>
       {ages.map((age) => {
         const cents = curve[String(age)]
         return (
-          <td key={age} className="px-2 py-2 text-right">
-            {cents != null ? formatCents(cents) : <span className="text-ink-30">—</span>}
+          <td key={age} className={cx(TD_DENSE, TD_NUM)}>
+            {cents != null ? formatCents(cents) : <span className={TEXT.faint}>—</span>}
           </td>
         )
       })}
     </tr>
-  )
-}
-
-/** A result card with a copy-JSON affordance in the corner. */
-function ResultPanel({ data, children }: { data: unknown; children: React.ReactNode }) {
-  return (
-    <div className={`${PANEL} relative`}>
-      <CopyJsonButton data={data} className="absolute right-3 top-3" />
-      {children}
-    </div>
   )
 }
 
@@ -347,7 +425,10 @@ function CopyJsonButton({ data, className }: { data: unknown; className?: string
       aria-label={copied ? 'Copied JSON' : 'Copy JSON'}
       title={copied ? 'Copied' : 'Copy JSON'}
       className={cx(
-        'rounded-xs p-1 text-ink-30 transition-colors hover:text-brand-60 [&_svg]:size-4',
+        'inline-flex rounded-xs p-1.5 transition-colors [&_svg]:size-4',
+        TEXT.faint,
+        HOVER.accent,
+        FOCUS_RING,
         className,
       )}
     >

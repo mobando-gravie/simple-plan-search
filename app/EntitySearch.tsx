@@ -170,7 +170,8 @@ export default function EntitySearch<T, S>({
         </div>
       ) : (
         <Field
-          label=""
+          label={`Search ${label.toLowerCase()}`}
+          hideLabel
           type="search"
           value={term}
           onChange={(e) => setTerm(e.target.value)}
@@ -184,7 +185,11 @@ export default function EntitySearch<T, S>({
         <p className={FAINT_XS}>{disabledReason}</p>
       )}
       {error && <p className={`text-paragraph-extra-small ${TEXT.danger}`}>{error}</p>}
-      {pending && <p className={FAINT_XS}>Searching…</p>}
+      {pending && (
+        <p role="status" className={FAINT_XS}>
+          Searching…
+        </p>
+      )}
 
       {!byIdentifier && hits.length > 0 && (
         <ul className={`max-h-56 overflow-y-auto ${DIVIDED_LIST} ${CARD}`}>
@@ -213,7 +218,7 @@ export default function EntitySearch<T, S>({
 
       {selected.length > 0 && (
         <div className="flex items-start gap-2">
-          <ul className="flex flex-1 flex-wrap gap-2">
+          <ul className="flex min-w-0 flex-1 flex-wrap gap-2">
             {selected.map((item) => (
               <li key={item.key}>
                 <RemovableChip label={item.label} onRemove={() => onRemove(item.key)} />

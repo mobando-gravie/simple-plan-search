@@ -58,14 +58,31 @@ export const FAINT = `text-paragraph-small ${TEXT.faint}`
 export const MUTED_XS = `text-paragraph-extra-small ${TEXT.muted}`
 export const FAINT_XS = `text-paragraph-extra-small ${TEXT.faint}`
 
-/** Surfaces carry elevation rather than a border — see CARD. */
-export const PANEL = `rounded-sm ${BG.surface} p-6 shadow-elevation-1`
-
 /** The house surface: elevation instead of a border, on the warm page ground. */
 export const CARD = `rounded-sm ${BG.surface} shadow-elevation-1`
 
+/** A card with its own padding; tighter on phones where the gutter is already 16px. */
+export const PANEL = `${CARD} p-4 sm:p-6`
+
 /** Padding is the caller's — the plan card and the modal head sit at different scales. */
 export const CARD_HEADER = `flex gap-3 border-b ${BORDER.subtle} ${BG.sunken}`
+
+/** Padding shared by a panel's head and body, so a flush table lines up with the title. */
+export const PANEL_PAD = 'px-4 sm:px-6'
+
+export const PANEL_TITLE = `text-header-h4 ${TEXT.heading}`
+
+/** A pickable tile — a rating area in a state, an example lookup in an empty state. */
+export const TILE =
+  `block w-full rounded-sm border ${BORDER.subtle} ${BG.surface} px-3 py-2 text-left ` +
+  `text-paragraph-small transition-colors hover:border-brand-50 ${HOVER.accentSurface} ${FOCUS_RING}`
+
+/** An inline text link. Underlined so it reads as a link in a run of muted text. */
+export const LINK = `rounded-xs underline underline-offset-2 ${TEXT.accent} ${HOVER.accent} ${FOCUS_RING}`
+
+/** Share bars — the metal mix, an issuer's slice of a county. */
+export const BAR_TRACK = `h-1.5 w-full overflow-hidden rounded-full ${BG.neutral}`
+export const BAR_FILL = `h-full rounded-full ${BG.accent}`
 
 export const DIVIDED_TOP = `border-t ${BORDER.subtle}`
 
@@ -88,6 +105,16 @@ export const HOVER_ROW = HOVER.accentSurface
 
 export const TD = 'px-4 py-3 text-paragraph-small'
 
+/** The dense pair, for a table of numbers inside a panel. */
+export const TH_DENSE = `px-3 py-2 text-left text-header-h6 uppercase ${TEXT.muted}`
+export const TD_DENSE = 'px-3 py-2 text-paragraph-small'
+
+/** Numeric cells: right-aligned, tabular digits, never wrapped. */
+export const TD_NUM = 'tnum whitespace-nowrap text-right'
+
+/** The first cell of a wide table stays put while the rest scrolls. */
+export const TD_STICKY = `sticky left-0 ${BG.surface}`
+
 export const CHIP =
   'inline-flex h-6 items-center justify-center gap-1 whitespace-nowrap rounded-xs border ' +
   'px-2 text-paragraph-extra-small font-bold'
@@ -103,9 +130,18 @@ export const CODE = `rounded-xs ${BG.neutral} px-1 py-0.5 font-mono text-paragra
 
 export const CODE_BLOCK = `overflow-x-auto rounded-xs ${BG.neutral} p-4 font-mono text-paragraph-extra-small ${TEXT.heading}`
 
+/** The page column, shared by the header and main so their edges line up. */
+export const CONTAINER = 'mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8'
+
 /** h1 steps down a tier on mobile — 36px at -0.17px tracking wraps badly at 375px. */
 export const H1 = 'text-header-h2 md:text-header-h1'
 
 export const SECTION_TITLE = `text-header-h3 ${TEXT.heading}`
 
-export const PAGE_SUBTITLE = `mt-1 text-paragraph-regular ${TEXT.muted}`
+export const PAGE_SUBTITLE = `mt-2 max-w-3xl text-paragraph-regular ${TEXT.muted}`
+
+/** The small uppercase label over a figure or a section — the stat labels, "Search". */
+export const EYEBROW = `text-header-h5 uppercase ${TEXT.muted}`
+
+/** A figure under an eyebrow: tabular digits so a column of them lines up. */
+export const FIGURE = `tnum text-header-h2 ${TEXT.heading}`

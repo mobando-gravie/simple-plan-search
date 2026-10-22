@@ -1,7 +1,7 @@
 import { LoaderCircle } from 'lucide-react'
 import { cx } from './cx'
 import { BTN_OUTLINE, BTN_SOLID, BTN_TEXT, BTN_TEXT_DESTRUCTIVE } from './theme'
-import { HOVER, TEXT } from './colors'
+import { FOCUS_RING, HOVER, TEXT } from './colors'
 
 const VARIANTS = {
   solid: BTN_SOLID,
@@ -51,6 +51,20 @@ export function Button({
   )
 }
 
+/** An <a> wearing a button — the CSV downloads. Same variants, no pending state. */
+export function ButtonLink({
+  variant = 'outline',
+  className,
+  children,
+  ...anchor
+}: { variant?: ButtonVariant } & React.AnchorHTMLAttributes<HTMLAnchorElement>) {
+  return (
+    <a {...anchor} className={cx(VARIANTS[variant], className)}>
+      {children}
+    </a>
+  )
+}
+
 const ICON_SIZES = { sm: '[&_svg]:size-3', md: '[&_svg]:size-4', lg: '[&_svg]:size-5' } as const
 
 /**
@@ -72,7 +86,14 @@ export function IconButton({
       type="button"
       {...button}
       aria-label={label}
-      className={cx('rounded-xs p-1 transition-colors', TEXT.faint, HOVER.danger, ICON_SIZES[size], className)}
+      className={cx(
+        'inline-flex rounded-xs p-1.5 transition-colors',
+        TEXT.faint,
+        HOVER.danger,
+        FOCUS_RING,
+        ICON_SIZES[size],
+        className,
+      )}
     >
       {children}
     </button>

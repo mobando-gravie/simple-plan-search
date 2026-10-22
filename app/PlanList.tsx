@@ -18,13 +18,15 @@ import { TEXT } from '@/app/ui/colors'
 import { DocLink } from '@/app/ui/DocLink'
 import InfoTooltip, { Tip } from '@/app/ui/InfoTooltip'
 import { EmptyState, Muted } from '@/app/ui/Text'
-import { CARD, CARD_HEADER, FAINT_XS, MUTED } from '@/app/ui/theme'
+import { CARD, CARD_HEADER, EYEBROW, FAINT_XS, FIGURE, MUTED } from '@/app/ui/theme'
 
-const STAT_LABEL = `flex items-center gap-1 text-header-h5 uppercase ${TEXT.muted}`
-const STAT_VALUE = `tnum mt-2 whitespace-nowrap text-header-h2 ${TEXT.heading}`
-const STAT_SUB = `tnum mt-1 whitespace-nowrap ${MUTED} underline`
+const STAT_LABEL = `flex items-center gap-1 ${EYEBROW}`
+const STAT_VALUE = `mt-1 whitespace-nowrap ${FIGURE}`
+const STAT_SUB = `tnum mt-1 whitespace-nowrap ${MUTED} underline decoration-dotted underline-offset-2`
 /** Each stat column but the first is separated by a rule, once the grid kicks in. */
-const STAT_COL = 'lg:border-l lg:border-brown-gravie-20'
+const STAT_COL =
+  'min-w-0 sm:border-l sm:border-brown-gravie-20 sm:px-4 sm:first:border-l-0 sm:first:pl-0 ' +
+  'lg:px-5 lg:first:border-l lg:first:pl-5'
 
 function Stat({
   label,
@@ -44,7 +46,7 @@ function Stat({
   subTooltip?: string
 }) {
   return (
-    <div className="px-5">
+    <div>
       <div className={STAT_LABEL}>
         {label}
         <InfoTooltip copy={tooltip} />
@@ -125,7 +127,7 @@ export default function PlanList({
 
           return (
             <li key={plan.hiosPlanId} className={`${CARD} overflow-hidden`}>
-              <div className={`${CARD_HEADER} items-center px-5 py-3`}>
+              <div className={`${CARD_HEADER} items-center px-4 py-3 sm:px-5`}>
                 {plan.logoUrl ? (
                   <Image
                     src={plan.logoUrl}
@@ -141,9 +143,12 @@ export default function PlanList({
                   </Muted>
                 )}
                 <h3 className={`min-w-0 flex-1 text-header-h4 ${TEXT.heading}`}>{plan.planName}</h3>
+                <span className={`hidden shrink-0 font-mono ${FAINT_XS} sm:inline`}>{plan.hiosPlanId}</span>
               </div>
 
-              <div className="grid grid-cols-1 items-start gap-4 p-5 lg:grid-cols-[12rem_1fr_1fr_1fr_auto] lg:gap-0">
+              {/* Tags, three stats, actions. The stats are their own grid until lg, where
+                  `contents` dissolves it so all five land in one row. */}
+              <div className="grid grid-cols-1 items-start gap-5 p-4 sm:p-5 lg:grid-cols-[12rem_1fr_1fr_1fr_auto] lg:gap-0">
                 <div className="flex flex-wrap gap-1.5 lg:pr-5">
                   <Tip copy={easyEnroll ? TOOLTIP_COPY.easyEnroll : TOOLTIP_COPY.selfEnroll}>
                     <Chip tone={easyEnroll ? 'orange' : 'neutral'}>
@@ -186,6 +191,7 @@ export default function PlanList({
                   )}
                 </div>
 
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-0 lg:contents">
                 <div className={STAT_COL}>
                   <Stat
                     label={hasAllowance ? 'Your Monthly Premium' : 'Premium'}
@@ -237,17 +243,18 @@ export default function PlanList({
                     subTooltip={TOOLTIP_COPY.perHousehold}
                   />
                 </div>
+                </div>
 
-                <div className={`flex flex-col items-start gap-2 lg:items-end lg:pl-5 ${STAT_COL}`}>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-brown-gravie-20 pt-4 lg:flex-col lg:items-end lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+                  <Button type="button" variant="outline" onClick={() => onOpenPlan(plan.hiosPlanId)}>
+                    Details
+                  </Button>
                   {sbc && (
                     <DocLink href={sbc} size="sm">
                       Summary of Benefits
                     </DocLink>
                   )}
-                  <Button type="button" variant="outline" onClick={() => onOpenPlan(plan.hiosPlanId)}>
-                    Details
-                  </Button>
-                  <span className={`font-mono ${FAINT_XS}`}>{plan.hiosPlanId}</span>
+                  <span className={`font-mono ${FAINT_XS} sm:hidden`}>{plan.hiosPlanId}</span>
                 </div>
               </div>
             </li>

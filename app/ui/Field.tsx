@@ -2,12 +2,14 @@
 import { Check, Minus } from 'lucide-react'
 import { useId } from 'react'
 import type { CoverageFilter } from '@/app/lib/planFilter'
-import { BG, BORDER, TEXT } from './colors'
+import { BG, BORDER, FOCUS_RING, TEXT } from './colors'
 import { cx } from './cx'
 import { CHECKBOX, FIELD, fieldClass, HINT, LABEL } from './theme'
 
 type FieldProps = {
   label: string
+  /** Keeps the label for assistive tech but off the screen — the typeahead titles itself. */
+  hideLabel?: boolean
   hint?: string
   /** Tailwind width class; the age inputs are w-24, everything else fills its cell. */
   width?: string
@@ -15,7 +17,7 @@ type FieldProps = {
   icon?: React.ReactNode
 } & React.InputHTMLAttributes<HTMLInputElement>
 
-export function Field({ label, hint, width, icon, className, ...input }: FieldProps) {
+export function Field({ label, hideLabel, hint, width, icon, className, ...input }: FieldProps) {
   const inputId = useId()
   const control = (
     <input
@@ -26,7 +28,7 @@ export function Field({ label, hint, width, icon, className, ...input }: FieldPr
   )
   return (
     <label htmlFor={inputId} className="block">
-      <span className={LABEL}>{label}</span>
+      <span className={hideLabel ? 'sr-only' : LABEL}>{label}</span>
       {icon ? (
         <div className="relative">
           <span
@@ -50,15 +52,25 @@ export function Field({ label, hint, width, icon, className, ...input }: FieldPr
 export function Select({
   label,
   hint,
+  width,
   className,
   children,
   ...select
-}: { label: string; hint?: string } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+}: {
+  label: string
+  hint?: string
+  /** Same contract as Field's: a width class in place of w-full, e.g. `w-full sm:w-44`. */
+  width?: string
+} & React.SelectHTMLAttributes<HTMLSelectElement>) {
   const selectId = useId()
   return (
     <label htmlFor={selectId} className="block">
       <span className={LABEL}>{label}</span>
-      <select id={selectId} {...select} className={cx(FIELD, className)}>
+      <select
+        id={selectId}
+        {...select}
+        className={cx(width ? fieldClass(width) : FIELD, className)}
+      >
         {children}
       </select>
       {hint && <span className={HINT}>{hint}</span>}
@@ -92,8 +104,9 @@ export function TriStateCheckbox({
       aria-checked={value === null ? false : ARIA_CHECKED[value]}
       onClick={() => onChange(CYCLE[(CYCLE.indexOf(value) + 1) % CYCLE.length])}
       className={cx(
-        'flex items-center gap-2 whitespace-nowrap text-paragraph-small',
+        'flex min-h-8 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xs text-paragraph-small',
         TEXT.body,
+        FOCUS_RING,
       )}
     >
       <span
@@ -119,7 +132,7 @@ export function CheckboxRow({
   return (
     <label
       className={cx(
-        'flex items-center gap-2 whitespace-nowrap text-paragraph-small',
+        'flex min-h-8 cursor-pointer items-center gap-2 whitespace-nowrap text-paragraph-small',
         TEXT.body,
         className,
       )}

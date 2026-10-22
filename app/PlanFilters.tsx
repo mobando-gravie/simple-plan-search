@@ -1,5 +1,6 @@
 'use client'
-import { X } from 'lucide-react'
+import { ChevronDown, ChevronUp, SlidersHorizontal, X } from 'lucide-react'
+import { useState } from 'react'
 import { toggle } from '@/app/lib/array'
 import { centsToDollarString, parseDollarStringToCents } from '@/app/lib/money'
 import { DEFAULT_FILTERS, filterOptions, type PlanFilterState, type SortKey } from '@/app/lib/planFilter'
@@ -9,7 +10,7 @@ import { Button } from '@/app/ui/Button'
 import { ToggleChip } from '@/app/ui/Chip'
 import { TEXT } from '@/app/ui/colors'
 import { CheckboxRow, Field, Select, TriStateCheckbox } from '@/app/ui/Field'
-import { CARD, DIVIDED_TOP, LABEL, MUTED } from '@/app/ui/theme'
+import { DIVIDED_TOP, EYEBROW, LABEL, MUTED, PANEL } from '@/app/ui/theme'
 
 const SORTS: { value: SortKey; label: string }[] = [
   { value: 'premium-asc', label: 'Premium, low to high' },
@@ -73,9 +74,11 @@ export default function PlanFilters({
   const toggleValue = (key: 'metalLevels' | 'planTypes' | 'carriers', value: string) =>
     set(key, toggle(filters[key], value))
   const isDefault = isDefaultFilters(filters)
+  // Phones: the search box stays out, the rest folds behind a toggle. Desktop ignores it.
+  const [open, setOpen] = useState(false)
 
   return (
-    <div className={`space-y-4 p-4 ${CARD}`}>
+    <div className={`space-y-4 ${PANEL}`}>
       <Field
         label="Search"
         type="search"
@@ -83,7 +86,24 @@ export default function PlanFilters({
         onChange={(e) => set('search', e.target.value)}
         placeholder="plan, carrier or HIOS id — separate several with |"
       />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={`flex min-h-9 w-full items-center gap-2 rounded-xs text-left sm:hidden ${EYEBROW} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-50`}
+      >
+        <SlidersHorizontal className="size-4" />
+        Filters
+        <span className={`ml-auto normal-case ${TEXT.body}`}>
+          {shown} of {plans.length}
+        </span>
+        <span className={TEXT.accent}>
+          {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </span>
+      </button>
+      <div className={`space-y-4 ${open ? 'mt-4' : 'hidden'} sm:mt-0 sm:block`}>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <Field
           label="Max premium"
           inputMode="numeric"
@@ -98,6 +118,7 @@ export default function PlanFilters({
           onChange={(e) => set('maxDeductibleCents', parseDollarStringToCents(e.target.value))}
           placeholder="5000"
         />
+        <div className="col-span-2 sm:col-span-1">
         <Select
           label="Sort by"
           value={filters.sort}
@@ -116,6 +137,7 @@ export default function PlanFilters({
             </option>
           ))}
         </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -146,7 +168,7 @@ export default function PlanFilters({
         </div>
       </div>
 
-      <div className={`flex flex-wrap items-center gap-4 pt-3 ${DIVIDED_TOP}`}>
+      <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 pt-3 ${DIVIDED_TOP}`}>
         <CheckboxRow
           label="HSA eligible only"
           checked={filters.hsaOnly}
@@ -166,15 +188,17 @@ export default function PlanFilters({
             label="My providers in network"
           />
         )}
-        <span className={`ml-auto ${MUTED}`}>
+        <span className={`ml-auto whitespace-nowrap ${MUTED}`} aria-live="polite">
           showing <strong className={`font-bold ${TEXT.heading}`}>{shown}</strong> of {plans.length}
         </span>
         {!isDefault && (
-          <Button type="button" variant="text" onClick={() => onChange(DEFAULT_FILTERS)}>
+          <Button type="button" variant="text" onClick={() => onChange(DEFAULT_FILTERS)} className="-mr-3">
             <X />
-            Clear
+            Clear filters
           </Button>
         )}
+      </div>
+      </div>
       </div>
     </div>
   )
