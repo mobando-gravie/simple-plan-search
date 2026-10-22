@@ -61,6 +61,10 @@ Tokens are issued by the service owner; request one rather than guessing.
 | GET | `/api/zip/{zip}` | — | `zip`, `fipsCode`, `state`, `countyName` |
 | GET | `/api/rating-areas` | — | `planYear`, `source`, `states[]` (or a resolved area) |
 | GET | `/api/rating-areas/{id}` | — | `ratingArea` (counties / zip3) |
+| GET | `/api/rating-areas/{id}/rates` | — | `years[]` cheapest + benchmark-silver curves (FFM) |
+| GET | `/api/enrollment` | — | state `total`, `metalMix`, `topPlans[]`, `topIssuers[]` (or overview) |
+| GET | `/api/county` | `fips` or `zip` | `county` issuers + demographics (FFM) |
+| GET | `/api/plans/{hiosPlanId}/availability` | — | `counties[]` the plan is sold in (FFM) |
 | POST | `/api/resolve` | body `{kind,ids}` | `resolved[]`, `unresolved[]` |
 
 `/api/plans`, `/api/plans/{id}`, `/api/market` and `/api/coverage` take the same
@@ -222,6 +226,29 @@ from the response. No `zip`/household needed, and no premiums here — this is g
   Area and state exports share one county-grained schema:
   `rating_area_id,state,state_name,area_number,county_fips,county_name,zip3`.
 - Edge-cached for 7 days (static). 404 on an unknown id / state / uncovered county.
+
+## CMS historical / reference data
+
+Built from the CMS Marketplace public-use files, committed as static reference data (read the
+plan year from each response). No `zip`/household needed. **Coverage caveat:** the Rate PUF, the
+detailed county PUF, and the Service Area PUF are **HealthCare.gov (FFM) states only** — state-based
+exchanges (CA, NY, MN, CO, WA, MA, PA, NJ, …) return 404 with a hint. Enrollment (`/api/enrollment`)
+covers FFM **and** SBE.
+
+| want | call |
+|---|---|
+| premiums for a rating area over time | `GET /api/rating-areas/TX01/rates` → `{ratingArea, state, areaNumber, referenceAges, years[]{year, cheapestCents{age}, benchmarkSilverCents{age}}}` |
+| who sells the most plans in a state | `GET /api/enrollment?state=TX` → `{state, stateName, year, total, metalMix{metal}, topPlans[]{planId,name,issuer,metal,enrollment}, topIssuers[]}` (add `&year=2023`) |
+| the metal mix / market size by state | `GET /api/enrollment` → overview `{planYears, measure, states[]{state, stateName, latestYear, latestTotal}}` |
+| a county's issuers + demographics | `GET /api/county?fips=48201` or `?zip=77001` → `{planYear, county{fips, countyName, state, total, issuers[], demographics}}` |
+| where a plan is sold | `GET /api/plans/{hiosPlanId}/availability` → `{plan, state, serviceAreaId, planYear, counties[]{fips,name}}` |
+
+- Money is integer cents (`cheapestCents`, `benchmarkSilverCents`), same as everywhere else.
+- `benchmarkSilverCents` is the second-lowest-cost silver plan's rate at each reference age (the ACA
+  SLCSP shape); `cheapestCents` is the lowest medical (non-dental) plan. Reference ages: 21, 30, 40,
+  50, 60, 64. Rates are non-tobacco, unsubsidized sticker.
+- Enrollment is average monthly (2018+); suppressed cells are dropped, not zeroed.
+- **CSV:** `?format=csv` on any of these.
 
 ## Identifier resolution
 

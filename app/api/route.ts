@@ -85,6 +85,26 @@ const ENDPOINTS = [
     summary: 'One rating area (e.g. MN07) and its counties. Add ?format=csv to download them.',
   },
   {
+    method: 'GET',
+    path: '/api/rating-areas/{id}/rates',
+    summary: 'CMS historical premiums for a rating area: cheapest + benchmark-silver curve by age and year. FFM states only. ?format=csv.',
+  },
+  {
+    method: 'GET',
+    path: '/api/enrollment',
+    summary: 'CMS marketplace enrollment by state: total, metal mix, top plans + issuers. ?state= (&year=) or none for an overview. ?format=csv.',
+  },
+  {
+    method: 'GET',
+    path: '/api/county',
+    summary: 'CMS county marketplace landscape: issuers + enrollee demographics. ?fips= or ?zip=. FFM states only. ?format=csv.',
+  },
+  {
+    method: 'GET',
+    path: '/api/plans/{hiosPlanId}/availability',
+    summary: 'Counties a plan is sold in, from the CMS Service Area PUF (FFM states). ?format=csv.',
+  },
+  {
     method: 'POST',
     path: '/api/resolve',
     summary: 'Batch resolve. Body: {"kind":"provider"|"drug","ids":["..."]}.',

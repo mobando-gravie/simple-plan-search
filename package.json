@@ -13,7 +13,11 @@
     "compare": "tsx --env-file=.env.local scripts/compare.ts",
     "test": "tsx --test \"app/**/*.test.ts\"",
     "warm-labels": "tsx --env-file=.env.local scripts/warm-labels.ts",
-    "build-rating-areas": "tsx scripts/build-rating-areas.ts"
+    "build-rating-areas": "tsx scripts/build-rating-areas.ts",
+    "build-area-rates": "tsx scripts/build-area-rates.ts",
+    "build-enrollment": "tsx scripts/build-enrollment.ts",
+    "build-county-enrollment": "tsx scripts/build-county-enrollment.ts",
+    "build-service-areas": "tsx scripts/build-service-areas.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
