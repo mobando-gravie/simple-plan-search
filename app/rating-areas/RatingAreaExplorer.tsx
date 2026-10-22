@@ -9,6 +9,7 @@ import { cx } from '@/app/ui/cx'
 import { Field, Select } from '@/app/ui/Field'
 import { Figure, FigureStrip } from '@/app/ui/Figure'
 import { Panel } from '@/app/ui/Panel'
+import { ShareList } from '@/app/ui/ShareList'
 import { EmptyPanel, ErrorState, LoadingState } from '@/app/ui/Text'
 import {
   CODE,
@@ -311,14 +312,90 @@ type RatesResult = {
   years: { year: number; cheapestCents: Record<string, number>; benchmarkSilverCents: Record<string, number> }[]
 }
 
-/** CMS historical premiums for the area: cheapest and benchmark-silver curves by age. */
+type StateMarket = {
+  state: string
+  stateName: string
+  year: number
+  total: number
+  metalMix: Record<string, number>
+  topIssuers: { issuerId: string; name: string; enrollment: number }[]
+}
+
+const enrInt = (v: number) => v.toLocaleString('en-US')
+const enrPct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0)
+
+/**
+ * Fallback for a state-based-exchange area, which the CMS Rate PUF does not cover: the state's
+ * enrollment market instead — size, metal mix and top issuer, linking to the full page.
+ */
+function StateMarketPanel({ state, market }: { state: string; market?: StateMarket | null }) {
+  const metals = market ? Object.entries(market.metalMix).sort((a, b) => b[1] - a[1]) : []
+  const topMetal = metals[0]
+  const topIssuer = market?.topIssuers[0]
+  return (
+    <Panel
+      as="h3"
+      title="Market snapshot"
+      subtitle="CMS doesn’t publish premiums for state-run exchanges — here’s who enrolled instead."
+      actions={
+        market && (
+          <ButtonLink href={`/enrollment?state=${encodeURIComponent(state)}`} variant="text">
+            Full enrollment
+            <ArrowRight />
+          </ButtonLink>
+        )
+      }
+    >
+      {market && (
+        <div className="space-y-6">
+          <FigureStrip>
+            <Figure label="Enrollees" value={enrInt(market.total)} detail={`avg monthly · ${market.year}`} />
+            {topMetal && (
+              <Figure label="Top metal" value={topMetal[0]} detail={`${enrPct(topMetal[1], market.total)}% of enrollees`} />
+            )}
+            {topIssuer && (
+              <Figure
+                label="Top issuer"
+                value={topIssuer.name}
+                size="md"
+                detail={`${enrPct(topIssuer.enrollment, market.total)}% share`}
+                className="col-span-2 sm:max-w-xs"
+              />
+            )}
+          </FigureStrip>
+          <div>
+            <h4 className={`mb-2 text-paragraph-regular font-bold ${TEXT.heading}`}>Metal mix</h4>
+            <ShareList
+              rows={metals.map(([metal, enrolled]) => ({
+                key: metal,
+                label: metal,
+                value: enrInt(enrolled),
+                pct: enrPct(enrolled, market.total),
+              }))}
+            />
+          </div>
+        </div>
+      )}
+    </Panel>
+  )
+}
+
+/** CMS historical premiums for the area, or a market snapshot where the Rate PUF has none. */
 function AreaRatesPanel({ id }: { id: string }) {
   const { data, error } = useSwr<RatesResult>(`/api/rating-areas/${encodeURIComponent(id)}/rates`)
   const [year, setYear] = useState<number | null>(null)
 
-  // No rates for state-based-exchange areas (not in the FFM Rate PUF) — render nothing
-  // rather than an empty card. The panel appears only once there is data.
-  if (error || !data || data.years.length === 0) return null
+  const state = id.slice(0, 2)
+  const noRates = Boolean(error) || (data != null && data.years.length === 0)
+  // Enrollment only when the Rate PUF has no premiums (state-based exchange); a null URL
+  // skips the request for the FFM areas that do have rates.
+  const market = useSwr<StateMarket>(
+    noRates ? `/api/enrollment?state=${encodeURIComponent(state)}` : null,
+  ).data
+
+  if (!data && !error) return null // rates still loading
+  // State-based-exchange areas aren't in the Rate PUF — show the state's market instead.
+  if (error || !data || data.years.length === 0) return <StateMarketPanel state={state} market={market} />
 
   const latest = data.years[data.years.length - 1]
   const current = data.years.find((y) => y.year === year) ?? latest

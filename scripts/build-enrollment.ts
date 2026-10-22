@@ -43,8 +43,28 @@ type YearData = {
   topIssuers: { issuerId: string; name: string; enrollment: number }[]
 }
 
+/**
+ * Issuer id → company name from the URRT (all 51 jurisdictions). The plan PUF leaves issuer_name
+ * null for state-based exchanges, so this fills those in; the most-filed spelling per id wins.
+ */
+function urrtIssuerNames(): Map<string, string> {
+  const best = new Map<string, { name: string; n: number }>()
+  for (const r of querySqlite<{ id: string; name: string; n: number }>(`
+    SELECT issuer_id AS id, TRIM(company) AS name, COUNT(*) AS n
+    FROM urrt_plan
+    WHERE issuer_id IS NOT NULL AND TRIM(COALESCE(company, '')) <> ''
+    GROUP BY issuer_id, TRIM(company)`)) {
+    const cur = best.get(r.id)
+    if (!cur || r.n > cur.n) best.set(r.id, { name: r.name, n: r.n })
+  }
+  return new Map([...best].map(([id, v]) => [id, v.name]))
+}
+
 function main() {
   assertDb()
+  const issuerNames = urrtIssuerNames()
+  const nameOf = (issuer: string | null, id: string | null): string =>
+    issuer ?? (id ? issuerNames.get(id) : undefined) ?? id ?? 'unknown'
   // state -> year -> accumulators
   const byState: Record<string, Record<string, Row[]>> = {}
   const years = new Set<number>()
@@ -67,7 +87,7 @@ function main() {
         const metal = r.metal ?? 'Unknown'
         metalMix[metal] = (metalMix[metal] ?? 0) + r.enr
         const id = r.issuerId ?? 'unknown'
-        const acc = issuerTotals.get(id) ?? { name: r.issuer ?? id, enrollment: 0 }
+        const acc = issuerTotals.get(id) ?? { name: nameOf(r.issuer, r.issuerId), enrollment: 0 }
         acc.enrollment += r.enr
         issuerTotals.set(id, acc)
       }
@@ -75,7 +95,7 @@ function main() {
         .map((r) => ({
           planId: r.pid,
           name: r.name ?? r.pid,
-          issuer: r.issuer ?? r.issuerId ?? '',
+          issuer: nameOf(r.issuer, r.issuerId),
           metal: r.metal ?? 'Unknown',
           enrollment: r.enr,
         }))
