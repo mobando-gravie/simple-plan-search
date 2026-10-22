@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { DETAIL_TTL_SECONDS, edgeCache } from '@/app/lib/api/cacheHeaders'
 import { jsonError } from '@/app/lib/api/respond'
 import { resolveZip } from '@/app/lib/services/planSearch'
 import { isZipCode } from '@/app/lib/validation'
@@ -11,7 +12,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ zip:
   }
   try {
     const county = await resolveZip(zip)
-    return NextResponse.json({ zip, ...county })
+    return NextResponse.json(
+      { zip, ...county },
+      { headers: edgeCache(DETAIL_TTL_SECONDS, DETAIL_TTL_SECONDS) },
+    )
   } catch (e) {
     // An unknown zip throws upstream rather than 404ing, so both land here.
     console.error(`zip lookup failed for ${zip}`, e)

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { DETAIL_TTL_SECONDS, edgeCache } from '@/app/lib/api/cacheHeaders'
 import { MAX_LIMIT } from '@/app/lib/api/query'
 
 /** The bootstrap call: everything an agent needs to write its second request. */
@@ -81,17 +82,20 @@ const ENDPOINTS = [
 ]
 
 export async function GET() {
-  return NextResponse.json({
-    service: 'simple-plan-search',
-    description:
-      'Individual-market (ACA) plan search, cached, priced with the Gravie premium overlay.',
-    guide: '/AGENTS_GUIDE.md',
-    conventions: {
-      money: 'Integer cents, every field suffixed Cents. Divide by 100 for dollars.',
-      auth: 'IP allowlist, session cookie, or Authorization: Bearer <token>.',
-      errors: '{"error": "...", "hint": "..."} with a 4xx or 5xx status; 502 adds retryable: true.',
-      maxLimit: MAX_LIMIT,
+  return NextResponse.json(
+    {
+      service: 'simple-plan-search',
+      description:
+        'Individual-market (ACA) plan search, cached, priced with the Gravie premium overlay.',
+      guide: '/AGENTS_GUIDE.md',
+      conventions: {
+        money: 'Integer cents, every field suffixed Cents. Divide by 100 for dollars.',
+        auth: 'IP allowlist, session cookie, or Authorization: Bearer <token>.',
+        errors: '{"error": "...", "hint": "..."} with a 4xx or 5xx status; 502 adds retryable: true.',
+        maxLimit: MAX_LIMIT,
+      },
+      endpoints: ENDPOINTS,
     },
-    endpoints: ENDPOINTS,
-  })
+    { headers: edgeCache(DETAIL_TTL_SECONDS, DETAIL_TTL_SECONDS) },
+  )
 }

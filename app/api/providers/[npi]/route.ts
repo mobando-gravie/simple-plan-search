@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { DETAIL_TTL_SECONDS, edgeCache } from '@/app/lib/api/cacheHeaders'
 import { jsonError, upstreamError } from '@/app/lib/api/respond'
 import { isNpi } from '@/app/lib/identifiers'
 import { resolveProviders } from '@/app/lib/services/entityLookup'
@@ -14,7 +15,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ npi:
     if (unresolved.length > 0 || resolved.length === 0) {
       return jsonError(404, `No provider ${npi}.`, 'Search by name: /api/providers?zip=11201&q=smith')
     }
-    return NextResponse.json({ provider: resolved[0] })
+    return NextResponse.json(
+      { provider: resolved[0] },
+      { headers: edgeCache(DETAIL_TTL_SECONDS, DETAIL_TTL_SECONDS) },
+    )
   } catch (e) {
     return upstreamError(e, 'Provider lookup is temporarily unavailable.')
   }

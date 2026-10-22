@@ -19,7 +19,8 @@ const DEFAULT_TTL_SECONDS = 86_400
 /** Ideon caps a page at 50 however large per_page is, so more than that means paging. */
 const IDEON_PAGE_SIZE = 50
 
-function ttlSeconds(): number {
+/** The plan cache TTL, shared so HTTP `s-maxage` and the DB freshness check can't drift. */
+export function planCacheTtlSeconds(): number {
   const raw = Number(process.env.PLAN_CACHE_TTL_SECONDS)
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_TTL_SECONDS
 }
@@ -162,7 +163,7 @@ export async function searchPlans(
   const cached = opts.refresh ? null : await findCached(cacheKey)
 
   const now = Date.now()
-  const isFresh = cached !== null && (now - cached.fetchedAt.getTime()) / 1000 < ttlSeconds()
+  const isFresh = cached !== null && (now - cached.fetchedAt.getTime()) / 1000 < planCacheTtlSeconds()
 
   let response: IdeonPlanSearchResponse
   let fetchedAt: Date

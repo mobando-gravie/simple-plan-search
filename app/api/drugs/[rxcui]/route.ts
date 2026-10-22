@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { DETAIL_TTL_SECONDS, edgeCache } from '@/app/lib/api/cacheHeaders'
 import { jsonError, upstreamError } from '@/app/lib/api/respond'
 import { isRxcui } from '@/app/lib/identifiers'
 import { resolveDrugs } from '@/app/lib/services/entityLookup'
@@ -19,13 +20,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ rxcu
       )
     }
     const drug = resolved[0]
-    return NextResponse.json({
-      drug: {
-        ...drug,
-        // The pair /api/plans and /api/coverage want as the `drugs` parameter.
-        selector: `${drug.medId}_${drug.ndc}`,
+    return NextResponse.json(
+      {
+        drug: {
+          ...drug,
+          // The pair /api/plans and /api/coverage want as the `drugs` parameter.
+          selector: `${drug.medId}_${drug.ndc}`,
+        },
       },
-    })
+      { headers: edgeCache(DETAIL_TTL_SECONDS, DETAIL_TTL_SECONDS) },
+    )
   } catch (e) {
     return upstreamError(e, 'Drug lookup is temporarily unavailable.')
   }

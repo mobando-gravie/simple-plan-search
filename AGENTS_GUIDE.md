@@ -261,7 +261,12 @@ Three layers. Only the third is the caller's.
 1. **The service's plan cache, 24 h**, shared and server-side. `cache.hit` and
    `cache.ageSeconds` report it; `refresh=true` bypasses it at one upstream call
    per page of the result set.
-2. **Any HTTP cache in front of the service.** Responses are `must-revalidate`.
+2. **The HTTP edge cache.** A 200 carries `CDN-Cache-Control: public, s-maxage=<n>,
+   stale-while-revalidate=<n>`, so the CDN serves repeats without re-running the service;
+   the client-facing `Cache-Control` is `private, no-cache`. Plan, market and coverage
+   responses set `s-maxage` to the time left on layer 1 (so a hit already 20 h old is only
+   edge-fresh for ~4 h more); zip, drug, provider, the index and this guide cache for 7 days.
+   `refresh=true` and every non-200 send `no-store`.
 3. **The caller's own**, required for bulk. One file per response, keyed on a
    hash of the full URL.
 
