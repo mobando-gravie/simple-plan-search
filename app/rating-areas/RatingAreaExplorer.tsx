@@ -1,10 +1,10 @@
 'use client'
 import { Search } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useSwr } from '@/app/lib/swr/useSwr'
 import { Button } from '@/app/ui/Button'
 import { Field, Select } from '@/app/ui/Field'
 import { Muted } from '@/app/ui/Text'
-import { useAsyncAction } from '@/app/ui/useAsyncAction'
 import { CODE, PANEL } from '@/app/ui/theme'
 
 type Mode = 'area' | 'zip' | 'county' | 'state'
@@ -50,34 +50,21 @@ function withCsv(url: string): string {
 export default function RatingAreaExplorer() {
   const [mode, setMode] = useState<Mode>('area')
   const [value, setValue] = useState('')
-  const [states, setStates] = useState<StateRow[]>([])
-  const [result, setResult] = useState<Result | null>(null)
-  const [csvUrl, setCsvUrl] = useState<string | null>(null)
-  const { pending, run } = useAsyncAction()
+  const [queryUrl, setQueryUrl] = useState<string | null>(null)
 
-  // States for the dropdown; the overview is tiny and edge-cached.
-  useEffect(() => {
-    fetch('/api/rating-areas')
-      .then((r) => r.json())
-      .then((d) => setStates(d.states ?? []))
-      .catch(() => setStates([]))
-  }, [])
+  // Both the state dropdown and the lookup go through the 48h IndexedDB cache.
+  const states = useSwr<{ states: StateRow[] }>('/api/rating-areas').data?.states ?? []
+  const { data: result, pending, source } = useSwr<Result>(queryUrl)
+  const csvUrl = queryUrl && result && !result.error ? withCsv(queryUrl) : null
 
-  function lookup(nextMode: Mode, nextValue: string) {
+  function open(nextMode: Mode, nextValue: string) {
     const v = nextValue.trim()
-    if (!v) return
-    const url = endpoint(nextMode, v)
-    run(async () => {
-      const res = await fetch(url)
-      const body = await res.json()
-      setResult(body)
-      setCsvUrl(res.ok && 'error' in body === false ? withCsv(url) : null)
-    })
+    if (v) setQueryUrl(endpoint(nextMode, v))
   }
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    lookup(mode, mode === 'state' && !value ? states[0]?.state ?? '' : value)
+    open(mode, mode === 'state' && !value ? states[0]?.state ?? '' : value)
   }
 
   return (
@@ -127,12 +114,26 @@ export default function RatingAreaExplorer() {
         )}
       </form>
 
-      {result && <ResultView result={result} onOpenArea={(id) => { setMode('area'); setValue(id); lookup('area', id) }} />}
+      {result && (
+        <ResultView
+          result={result}
+          fromCache={source === 'cache'}
+          onOpenArea={(id) => { setMode('area'); setValue(id); open('area', id) }}
+        />
+      )}
     </div>
   )
 }
 
-function ResultView({ result, onOpenArea }: { result: Result; onOpenArea: (id: string) => void }) {
+function ResultView({
+  result,
+  fromCache,
+  onOpenArea,
+}: {
+  result: Result
+  fromCache: boolean
+  onOpenArea: (id: string) => void
+}) {
   if (result.error) {
     return (
       <div className={PANEL}>
@@ -141,6 +142,8 @@ function ResultView({ result, onOpenArea }: { result: Result; onOpenArea: (id: s
       </div>
     )
   }
+
+  const cacheTag = fromCache ? <span className="text-ink-30"> · cached</span> : null
 
   if ('ratingArea' in result && 'counties' in result.ratingArea) {
     const a = result.ratingArea
@@ -153,6 +156,7 @@ function ResultView({ result, onOpenArea }: { result: Result; onOpenArea: (id: s
           {a.counties.length > 0
             ? `${a.counties.length} ${a.counties.length === 1 ? 'county' : 'counties'}`
             : `${a.zip3.length} ZIP prefixes`}
+          {cacheTag}
         </Muted>
         {a.counties.length > 0 ? (
           <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3">
@@ -179,7 +183,7 @@ function ResultView({ result, onOpenArea }: { result: Result; onOpenArea: (id: s
         <h2 className="text-header-h4 font-black">
           {result.stateName} ({result.state}) — {result.areas.length} rating areas
         </h2>
-        <Muted className="mt-1">Area definition: {result.basis}. Open one for its counties.</Muted>
+        <Muted className="mt-1">Area definition: {result.basis}. Open one for its counties.{cacheTag}</Muted>
         <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {result.areas.map((a) => (
             <li key={a.id}>
@@ -198,7 +202,6 @@ function ResultView({ result, onOpenArea }: { result: Result; onOpenArea: (id: s
     )
   }
 
-  // Reverse lookup (zip or county).
   const r = result as ReverseResult
   return (
     <div className={PANEL}>
@@ -207,6 +210,7 @@ function ResultView({ result, onOpenArea }: { result: Result; onOpenArea: (id: s
       </h2>
       <Muted className="mt-1">
         {r.zip ? `ZIP ${r.zip}` : `County ${r.countyFips}`} · FIPS {r.county.fips} · Rating Area {r.ratingArea.areaNumber}
+        {cacheTag}
       </Muted>
       <button
         type="button"

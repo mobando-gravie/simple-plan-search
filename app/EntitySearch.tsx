@@ -1,8 +1,8 @@
 'use client'
 import { ClipboardList, Plus, Search, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { errorMessage } from '@/app/lib/errors'
 import { looksLikeMedIds, parseIdentifiers } from '@/app/lib/identifiers'
+import { useSwr } from '@/app/lib/swr/useSwr'
 import { MIN_SEARCH_TERM } from '@/app/lib/validation'
 import { Button } from '@/app/ui/Button'
 import { RemovableChip, ToggleChip } from '@/app/ui/Chip'
@@ -63,39 +63,22 @@ export default function EntitySearch<T, S>({
   } | null>(null)
   const resolving = useAsyncAction()
   const [term, setTerm] = useState('')
-  const [loaded, setLoaded] = useState<{ url: string; hits: T[]; error: string | null } | null>(
-    null,
-  )
-
   const url = term.trim().length >= MIN_SEARCH_TERM ? buildUrl(term.trim()) : null
 
-  // Everything but `loaded` is derived, and `loaded` is only written from the
-  // async callback — keyed by url, so a slow early keystroke cannot overwrite a
-  // later result and no state is set synchronously during the effect.
-  const fresh = url !== null && loaded?.url === url
-  const hits = fresh ? loaded.hits : []
-  const error = fresh ? loaded.error : null
-  const pending = url !== null && !fresh
-
+  // Debounce the url, then let the global SWR cache answer it: a repeated prefix is served
+  // from IndexedDB with no network call. Results show only once the debounced url has caught
+  // up to the current term, so a slow early keystroke cannot paint under a later one.
+  const [debouncedUrl, setDebouncedUrl] = useState<string | null>(null)
   useEffect(() => {
-    if (!url) return
-    const controller = new AbortController()
-    const timer = setTimeout(async () => {
-      try {
-        const response = await fetch(url, { signal: controller.signal })
-        const body = await response.json()
-        setLoaded({ url, hits: body.hits ?? [], error: body.error ?? null })
-      } catch (e) {
-        if (!controller.signal.aborted) {
-          setLoaded({ url, hits: [], error: errorMessage(e, 'search failed') })
-        }
-      }
-    }, DEBOUNCE_MS)
-    return () => {
-      controller.abort()
-      clearTimeout(timer)
-    }
+    const timer = setTimeout(() => setDebouncedUrl(url), DEBOUNCE_MS)
+    return () => clearTimeout(timer)
   }, [url])
+
+  const swr = useSwr<{ hits: T[]; error?: string }>(debouncedUrl)
+  const settled = url !== null && url === debouncedUrl
+  const hits = settled ? swr.data?.hits ?? [] : []
+  const error = settled ? swr.error ?? swr.data?.error ?? null : null
+  const pending = url !== null && (url !== debouncedUrl || swr.pending)
 
   const selectedKeys = new Set(selected.map((s) => s.key))
 
