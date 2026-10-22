@@ -9,7 +9,7 @@ import { cx } from '@/app/ui/cx'
 import { Field, Select } from '@/app/ui/Field'
 import { Figure, FigureStrip } from '@/app/ui/Figure'
 import { Panel } from '@/app/ui/Panel'
-import { EmptyPanel, ErrorState, LoadingState, Muted } from '@/app/ui/Text'
+import { EmptyPanel, ErrorState, LoadingState } from '@/app/ui/Text'
 import {
   CODE,
   DIVIDED_LIST,
@@ -313,17 +313,12 @@ type RatesResult = {
 
 /** CMS historical premiums for the area: cheapest and benchmark-silver curves by age. */
 function AreaRatesPanel({ id }: { id: string }) {
-  const { data, pending, error } = useSwr<RatesResult>(`/api/rating-areas/${encodeURIComponent(id)}/rates`)
+  const { data, error } = useSwr<RatesResult>(`/api/rating-areas/${encodeURIComponent(id)}/rates`)
   const [year, setYear] = useState<number | null>(null)
 
-  if (pending && !data) return <LoadingState>Loading premiums…</LoadingState>
-  if (error || !data || data.years.length === 0) {
-    return (
-      <Panel title="Premiums" as="h3">
-        <Muted>No CMS premium data — the federal Rate PUF covers HealthCare.gov states only.</Muted>
-      </Panel>
-    )
-  }
+  // No rates for state-based-exchange areas (not in the FFM Rate PUF) — render nothing
+  // rather than an empty card. The panel appears only once there is data.
+  if (error || !data || data.years.length === 0) return null
 
   const latest = data.years[data.years.length - 1]
   const current = data.years.find((y) => y.year === year) ?? latest
