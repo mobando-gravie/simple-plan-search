@@ -59,6 +59,8 @@ Tokens are issued by the service owner; request one rather than guessing.
 | GET | `/api/drugs` | `q` | `hits[]` |
 | GET | `/api/drugs/{rxcui}` | — | `drug` |
 | GET | `/api/zip/{zip}` | — | `zip`, `fipsCode`, `state`, `countyName` |
+| GET | `/api/rating-areas` | — | `planYear`, `source`, `states[]` (or a resolved area) |
+| GET | `/api/rating-areas/{id}` | — | `ratingArea` (counties / zip3) |
 | POST | `/api/resolve` | body `{kind,ids}` | `resolved[]`, `unresolved[]` |
 
 `/api/plans`, `/api/plans/{id}`, `/api/market` and `/api/coverage` take the same
@@ -197,6 +199,29 @@ Each entry of `plans[]` carries `hiosPlanId`, `planName`, `carrierName`,
 `providers[]` / `drugs[]` rows described under the full view.
 
 400 when neither `providers` nor `drugs` is supplied.
+
+## Rating areas
+
+Geographic rating areas — the county (or 3-digit-zip) groupings a carrier prices against.
+Static reference data from CMS, with county FIPS from the U.S. Census Bureau; read the plan year
+from the response. No `zip`/household needed, and no premiums here — this is geography.
+
+| want | call |
+|---|---|
+| the counties in an area | `GET /api/rating-areas/MN07` → `ratingArea {id, state, stateName, areaNumber, basis, countyCount, counties[]{fips,name}, zip3[]}` |
+| the area a ZIP is in | `GET /api/rating-areas?zip=55901` → `{zip, state, county{fips,name}, ratingArea{id, areaNumber}}` |
+| the area a county is in | `GET /api/rating-areas?county_fips=27109` → same shape with `countyFips` |
+| every area in a state | `GET /api/rating-areas?state=MN` → `{state, stateName, basis, areas[]{id, areaNumber, countyCount}}` |
+| the states covered | `GET /api/rating-areas` → `{planYear, source, states[]{state, stateName, basis, areaCount}}` |
+
+- Area ids are `<ST><NN>`, zero-padded (`MN07`). The path accepts `mn7` / `MN-07` too.
+- `basis` is `county`, `zip3`, or `mixed` (a state that is county-based except for a metro split by
+  ZIP, e.g. California / Los Angeles). A county split by ZIP resolves only via `?zip=`, not
+  `?county_fips=`.
+- **CSV:** add `?format=csv` to any of these to download it (`Content-Disposition: attachment`).
+  Area and state exports share one county-grained schema:
+  `rating_area_id,state,state_name,area_number,county_fips,county_name,zip3`.
+- Edge-cached for 7 days (static). 404 on an unknown id / state / uncovered county.
 
 ## Identifier resolution
 

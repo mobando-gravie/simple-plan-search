@@ -12,7 +12,8 @@
     "migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "compare": "tsx --env-file=.env.local scripts/compare.ts",
     "test": "tsx --test \"app/**/*.test.ts\"",
-    "warm-labels": "tsx --env-file=.env.local scripts/warm-labels.ts"
+    "warm-labels": "tsx --env-file=.env.local scripts/warm-labels.ts",
+    "build-rating-areas": "tsx scripts/build-rating-areas.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

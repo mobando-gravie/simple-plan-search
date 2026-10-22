@@ -75,6 +75,16 @@ const ENDPOINTS = [
   { method: 'GET', path: '/api/drugs/{rxcui}', summary: 'Resolve one RxCUI to a drug and its NDC.' },
   { method: 'GET', path: '/api/zip/{zip}', summary: 'Zip to FIPS code, state and county.' },
   {
+    method: 'GET',
+    path: '/api/rating-areas',
+    summary: 'Geographic rating areas. ?state=, ?zip= or ?county_fips= to resolve; none for an overview. Add ?format=csv.',
+  },
+  {
+    method: 'GET',
+    path: '/api/rating-areas/{id}',
+    summary: 'One rating area (e.g. MN07) and its counties. Add ?format=csv to download them.',
+  },
+  {
     method: 'POST',
     path: '/api/resolve',
     summary: 'Batch resolve. Body: {"kind":"provider"|"drug","ids":["..."]}.',

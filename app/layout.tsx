@@ -22,13 +22,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen">
         {/* No bottom border — white on the warm ground separates on its own. */}
         <header className="w-full bg-white">
-          <div className={`${CONTAINER} flex min-h-16 items-center py-3 sm:py-0`}>
+          <div className={`${CONTAINER} flex min-h-16 items-center gap-6 py-3 sm:py-0`}>
             <Link
               href="/"
               className="whitespace-nowrap text-header-h4 text-brand-60 sm:text-header-h3"
             >
               Simple Plan Search
             </Link>
+            <nav className="ml-auto flex items-center gap-5 text-paragraph-small">
+              <Link href="/" className="text-ink-60 hover:text-brand-60">
+                Plans
+              </Link>
+              <Link href="/rating-areas" className="text-ink-60 hover:text-brand-60">
+                Rating areas
+              </Link>
+            </nav>
           </div>
         </header>
         <main className={`${CONTAINER} py-8`}>{children}</main>
