@@ -1,8 +1,9 @@
 'use client'
-import { Search } from 'lucide-react'
+import { Check, Copy, Search } from 'lucide-react'
 import { useState } from 'react'
 import { useSwr } from '@/app/lib/swr/useSwr'
 import { Button } from '@/app/ui/Button'
+import { cx } from '@/app/ui/cx'
 import { Field, Select } from '@/app/ui/Field'
 import { Muted } from '@/app/ui/Text'
 import { CODE, PANEL } from '@/app/ui/theme'
@@ -155,7 +156,7 @@ function ResultView({
   if ('ratingArea' in result && 'counties' in result.ratingArea) {
     const a = result.ratingArea
     return (
-      <div className={PANEL}>
+      <ResultPanel data={result}>
         <h2 className="text-header-h4 font-black">
           {a.id} — {a.stateName}, Rating Area {a.areaNumber}
         </h2>
@@ -180,13 +181,13 @@ function ResultView({
             ))}
           </p>
         )}
-      </div>
+      </ResultPanel>
     )
   }
 
   if ('areas' in result) {
     return (
-      <div className={PANEL}>
+      <ResultPanel data={result}>
         <h2 className="text-header-h4 font-black">
           {result.stateName} ({result.state}) — {result.areas.length} rating areas
         </h2>
@@ -205,13 +206,13 @@ function ResultView({
             </li>
           ))}
         </ul>
-      </div>
+      </ResultPanel>
     )
   }
 
   const r = result as ReverseResult
   return (
-    <div className={PANEL}>
+    <ResultPanel data={result}>
       <h2 className="text-header-h4 font-black">
         {r.county.name}, {r.state} → {r.ratingArea.id}
       </h2>
@@ -226,6 +227,44 @@ function ResultView({
       >
         View all counties in {r.ratingArea.id}
       </button>
+    </ResultPanel>
+  )
+}
+
+/** A result card with a copy-JSON affordance in the corner. */
+function ResultPanel({ data, children }: { data: unknown; children: React.ReactNode }) {
+  return (
+    <div className={`${PANEL} relative`}>
+      <CopyJsonButton data={data} className="absolute right-3 top-3" />
+      {children}
     </div>
+  )
+}
+
+/** Copies the result as pretty-printed JSON; the icon flips to a check for a moment. */
+function CopyJsonButton({ data, className }: { data: unknown; className?: string }) {
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(data, null, 2))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard blocked (insecure context or denied permission) — nothing to do.
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={copied ? 'Copied JSON' : 'Copy JSON'}
+      title={copied ? 'Copied' : 'Copy JSON'}
+      className={cx(
+        'rounded-xs p-1 text-ink-30 transition-colors hover:text-brand-60 [&_svg]:size-4',
+        className,
+      )}
+    >
+      {copied ? <Check /> : <Copy />}
+    </button>
   )
 }
