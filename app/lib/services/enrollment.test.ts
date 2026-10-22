@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { enrollmentOverview, enrollmentRows, stateEnrollment } from './enrollment'
+import { enrollmentOverview, enrollmentRows, issuerRows, metalMixRows, stateEnrollment } from './enrollment'
 
 test('stateEnrollment returns a state year with totals, metal mix and rankings', () => {
   const e = stateEnrollment('TX')
@@ -34,4 +34,14 @@ test('enrollmentOverview ranks states by latest total and includes TX', () => {
 test('enrollmentRows emits one row per top plan', () => {
   const e = stateEnrollment('TX')!
   assert.equal(enrollmentRows(e).length, e.topPlans.length)
+})
+
+test('metalMixRows and issuerRows emit one row each with a share percent', () => {
+  const e = stateEnrollment('TX')!
+  const metal = metalMixRows(e)
+  assert.equal(metal.length, Object.keys(e.metalMix).length)
+  // [state, year, metal, enrollment, share_pct] — highest first, share 0–100.
+  assert.equal(metal[0][0], 'TX')
+  assert.ok(Number(metal[0][4]) >= 0 && Number(metal[0][4]) <= 100)
+  assert.equal(issuerRows(e).length, e.topIssuers.length)
 })

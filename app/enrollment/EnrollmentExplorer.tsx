@@ -133,10 +133,21 @@ function OverviewView({ overview, onPick }: { overview: Overview; onPick: (state
   )
 }
 
+/** A compact "Export CSV" link for a section's facet of the state's enrollment. */
+function ExportCsv({ href }: { href: string }) {
+  return (
+    <ButtonLink href={href} download variant="text" className="-mr-3">
+      <Download />
+      Export CSV
+    </ButtonLink>
+  )
+}
+
 function StateView({ result }: { result: StateResult }) {
   const metals = Object.entries(result.metalMix).sort((a, b) => b[1] - a[1])
   const topMetal = metals[0]
   const topIssuer = result.topIssuers[0]
+  const base = `/api/enrollment?state=${encodeURIComponent(result.state)}&year=${result.year}`
   return (
     <div className="space-y-6">
       <Panel
@@ -165,7 +176,12 @@ function StateView({ result }: { result: StateResult }) {
       </Panel>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
-        <Panel as="h3" title="Metal mix" subtitle="Share of enrollees on each metal tier.">
+        <Panel
+          as="h3"
+          title="Metal mix"
+          subtitle="Share of enrollees on each metal tier."
+          actions={<ExportCsv href={`${base}&view=metal&format=csv`} />}
+        >
           <ShareList
             rows={metals.map(([metal, enrolled]) => ({
               key: metal,
@@ -176,7 +192,12 @@ function StateView({ result }: { result: StateResult }) {
           />
         </Panel>
 
-        <Panel as="h3" title="Top issuers" subtitle="By enrollment, with share of the state.">
+        <Panel
+          as="h3"
+          title="Top issuers"
+          subtitle="By enrollment, with share of the state."
+          actions={<ExportCsv href={`${base}&view=issuers&format=csv`} />}
+        >
           <ShareList
             ranked
             rows={result.topIssuers.map((issuer) => ({

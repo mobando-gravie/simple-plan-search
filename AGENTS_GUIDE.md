@@ -62,7 +62,7 @@ Tokens are issued by the service owner; request one rather than guessing.
 | GET | `/api/rating-areas` | — | `planYear`, `source`, `states[]` (or a resolved area) |
 | GET | `/api/rating-areas/{id}` | — | `ratingArea` (counties / zip3) |
 | GET | `/api/rating-areas/{id}/rates` | — | `years[]` cheapest + benchmark-silver curves (FFM) |
-| GET | `/api/enrollment` | — | state `total`, `metalMix`, `topPlans[]`, `topIssuers[]` (or overview) |
+| GET | `/api/enrollment` | — | state `total`, `metalMix`, `topPlans[]`, `topIssuers[]` (or overview); `&view=metal\|issuers` picks the CSV facet |
 | GET | `/api/plans/{hiosPlanId}/availability` | — | `counties[]` the plan is sold in (FFM) |
 | POST | `/api/resolve` | body `{kind,ids}` | `resolved[]`, `unresolved[]` |
 

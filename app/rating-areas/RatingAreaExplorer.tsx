@@ -340,10 +340,20 @@ function StateMarketPanel({ state, market }: { state: string; market?: StateMark
       subtitle="CMS doesn’t publish premiums for state-run exchanges — here’s who enrolled instead."
       actions={
         market && (
-          <ButtonLink href={`/enrollment?state=${encodeURIComponent(state)}`} variant="text">
-            Full enrollment
-            <ArrowRight />
-          </ButtonLink>
+          <>
+            <ButtonLink
+              href={`/api/enrollment?state=${encodeURIComponent(state)}&view=metal&format=csv`}
+              download
+              variant="text"
+            >
+              <Download />
+              Export CSV
+            </ButtonLink>
+            <ButtonLink href={`/enrollment?state=${encodeURIComponent(state)}`} variant="text">
+              Full enrollment
+              <ArrowRight />
+            </ButtonLink>
+          </>
         )
       }
     >

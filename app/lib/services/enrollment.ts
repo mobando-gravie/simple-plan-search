@@ -49,9 +49,27 @@ export function enrollmentOverview() {
   return { planYears: ENROLLMENT_DATA.planYears, measure: ENROLLMENT_DATA.measure, source: ENROLLMENT_DATA.source, states }
 }
 
+const share = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0)
+
 export const ENROLLMENT_CSV_HEADERS = ['state', 'year', 'rank', 'plan_id', 'plan_name', 'issuer', 'metal', 'avg_monthly_enrollment']
 
 /** One CSV row per top plan. */
 export function enrollmentRows(e: StateEnrollment): (string | number)[][] {
   return e.topPlans.map((p, i) => [e.state, e.year, i + 1, p.planId, p.name, p.issuer, p.metal, p.enrollment])
+}
+
+export const METAL_MIX_CSV_HEADERS = ['state', 'year', 'metal_level', 'avg_monthly_enrollment', 'share_pct']
+
+/** One CSV row per metal tier, highest enrollment first. */
+export function metalMixRows(e: StateEnrollment): (string | number)[][] {
+  return Object.entries(e.metalMix)
+    .sort((a, b) => b[1] - a[1])
+    .map(([metal, count]) => [e.state, e.year, metal, count, share(count, e.total)])
+}
+
+export const ISSUER_CSV_HEADERS = ['state', 'year', 'rank', 'issuer_id', 'issuer_name', 'avg_monthly_enrollment', 'share_pct']
+
+/** One CSV row per top issuer. */
+export function issuerRows(e: StateEnrollment): (string | number)[][] {
+  return e.topIssuers.map((is, i) => [e.state, e.year, i + 1, is.issuerId, is.name, is.enrollment, share(is.enrollment, e.total)])
 }
