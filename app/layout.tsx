@@ -29,12 +29,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             >
               Simple Plan Search
             </Link>
-            <nav className="ml-auto flex items-center gap-5 text-paragraph-small">
+            <nav className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-paragraph-small">
               <Link href="/" className="text-ink-60 hover:text-brand-60">
                 Plans
               </Link>
               <Link href="/rating-areas" className="text-ink-60 hover:text-brand-60">
                 Rating areas
+              </Link>
+              <Link href="/enrollment" className="text-ink-60 hover:text-brand-60">
+                Enrollment
+              </Link>
+              <Link href="/county" className="text-ink-60 hover:text-brand-60">
+                County
               </Link>
             </nav>
           </div>

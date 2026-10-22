@@ -1,6 +1,7 @@
 'use client'
 import { Check, Copy, Search } from 'lucide-react'
 import { useState } from 'react'
+import { formatCents } from '@/app/lib/money'
 import { useSwr } from '@/app/lib/swr/useSwr'
 import { Button } from '@/app/ui/Button'
 import { cx } from '@/app/ui/cx'
@@ -156,32 +157,35 @@ function ResultView({
   if ('ratingArea' in result && 'counties' in result.ratingArea) {
     const a = result.ratingArea
     return (
-      <ResultPanel data={result}>
-        <h2 className="text-header-h4 font-black">
-          {a.id} — {a.stateName}, Rating Area {a.areaNumber}
-        </h2>
-        <Muted className="mt-1">
-          {a.counties.length > 0
-            ? `${a.counties.length} ${a.counties.length === 1 ? 'county' : 'counties'}`
-            : `${a.zip3.length} ZIP prefixes`}
-          {cacheTag}
-        </Muted>
-        {a.counties.length > 0 ? (
-          <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3">
-            {a.counties.map((c) => (
-              <li key={c.fips} className="text-paragraph-small">
-                {c.name} <span className="text-ink-30">· {c.fips}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-4 text-paragraph-small">
-            {a.zip3.map((z) => (
-              <code key={z} className={`${CODE} mr-1`}>{z}xx</code>
-            ))}
-          </p>
-        )}
-      </ResultPanel>
+      <div className="space-y-6">
+        <ResultPanel data={result}>
+          <h2 className="text-header-h4 font-black">
+            {a.id} — {a.stateName}, Rating Area {a.areaNumber}
+          </h2>
+          <Muted className="mt-1">
+            {a.counties.length > 0
+              ? `${a.counties.length} ${a.counties.length === 1 ? 'county' : 'counties'}`
+              : `${a.zip3.length} ZIP prefixes`}
+            {cacheTag}
+          </Muted>
+          {a.counties.length > 0 ? (
+            <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3">
+              {a.counties.map((c) => (
+                <li key={c.fips} className="text-paragraph-small">
+                  {c.name} <span className="text-ink-30">· {c.fips}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-paragraph-small">
+              {a.zip3.map((z) => (
+                <code key={z} className={`${CODE} mr-1`}>{z}xx</code>
+              ))}
+            </p>
+          )}
+        </ResultPanel>
+        <AreaRatesPanel id={a.id} />
+      </div>
     )
   }
 
@@ -228,6 +232,89 @@ function ResultView({
         View all counties in {r.ratingArea.id}
       </button>
     </ResultPanel>
+  )
+}
+
+type RatesResult = {
+  ratingArea: string
+  source: string
+  referenceAges: number[]
+  years: { year: number; cheapestCents: Record<string, number>; benchmarkSilverCents: Record<string, number> }[]
+}
+
+/** CMS historical premiums for the area: cheapest and benchmark-silver curves by age. */
+function AreaRatesPanel({ id }: { id: string }) {
+  const { data, pending, error } = useSwr<RatesResult>(`/api/rating-areas/${encodeURIComponent(id)}/rates`)
+  const [year, setYear] = useState<number | null>(null)
+
+  if (pending && !data) return null
+  if (error || !data || data.years.length === 0) {
+    return (
+      <div className={PANEL}>
+        <h3 className="text-paragraph-regular font-bold">Premiums</h3>
+        <Muted className="mt-1">
+          No CMS premium data — the federal Rate PUF covers HealthCare.gov states only.
+        </Muted>
+      </div>
+    )
+  }
+
+  const latest = data.years[data.years.length - 1]
+  const current = data.years.find((y) => y.year === year) ?? latest
+  const csvUrl = `/api/rating-areas/${encodeURIComponent(id)}/rates?format=csv`
+
+  return (
+    <ResultPanel data={data}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2 pr-8">
+        <h3 className="text-paragraph-regular font-bold">Premiums · plan year {current.year}</h3>
+        <Select
+          label="Year"
+          value={current.year}
+          onChange={(e) => setYear(Number(e.target.value))}
+          className="w-28"
+        >
+          {[...data.years].reverse().map((y) => (
+            <option key={y.year} value={y.year}>{y.year}</option>
+          ))}
+        </Select>
+      </div>
+      <Muted className="mt-1">Lowest-cost plan and the benchmark (2nd-lowest silver), non-tobacco sticker, by age.</Muted>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full text-paragraph-small tnum">
+          <thead>
+            <tr className="text-left text-ink-30">
+              <th className="py-1 pr-4 font-normal">Age</th>
+              {data.referenceAges.map((age) => (
+                <th key={age} className="px-2 py-1 text-right font-normal">{age}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <RateRow label="Cheapest" ages={data.referenceAges} curve={current.cheapestCents} />
+            <RateRow label="Benchmark silver" ages={data.referenceAges} curve={current.benchmarkSilverCents} />
+          </tbody>
+        </table>
+      </div>
+      <a href={csvUrl} download className="mt-4 inline-block text-paragraph-small text-brand-60 underline">
+        Export all years (CSV)
+      </a>
+    </ResultPanel>
+  )
+}
+
+function RateRow({ label, ages, curve }: { label: string; ages: number[]; curve: Record<string, number> }) {
+  return (
+    <tr className="border-t border-ink-10">
+      <td className="py-2 pr-4 font-bold">{label}</td>
+      {ages.map((age) => {
+        const cents = curve[String(age)]
+        return (
+          <td key={age} className="px-2 py-2 text-right">
+            {cents != null ? formatCents(cents) : <span className="text-ink-30">—</span>}
+          </td>
+        )
+      })}
+    </tr>
   )
 }
 

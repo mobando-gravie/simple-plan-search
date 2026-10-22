@@ -1,6 +1,7 @@
 'use client'
 import { Check, X } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSwr } from '@/app/lib/swr/useSwr'
 import {
   ADDITIONAL_COVERAGES,
   benefitValues,
@@ -80,6 +81,43 @@ function BenefitTable({
   )
 }
 
+type Availability = {
+  state: string
+  serviceAreaId: string
+  planYear: number
+  counties: { fips: string; name: string | null }[]
+}
+
+/** Counties the plan is sold in (CMS Service Area PUF). Hidden when not covered (FFM only). */
+function AvailabilitySection({ hiosPlanId }: { hiosPlanId: string }) {
+  const { data, error } = useSwr<Availability>(`/api/plans/${encodeURIComponent(hiosPlanId)}/availability`)
+  const [expanded, setExpanded] = useState(false)
+  if (error || !data || data.counties.length === 0) return null
+
+  const shown = expanded ? data.counties : data.counties.slice(0, 12)
+  return (
+    <section className="space-y-3">
+      <h3 className={SECTION_TITLE}>Where it&apos;s sold</h3>
+      <Muted>
+        {data.counties.length} {data.counties.length === 1 ? 'county' : 'counties'} · plan year{' '}
+        {data.planYear} (CMS Service Area PUF)
+      </Muted>
+      <div className="flex flex-wrap gap-1.5">
+        {shown.map((c) => (
+          <span key={c.fips} className={`rounded-xs ${BG.neutral} px-2 py-0.5 text-paragraph-small`}>
+            {c.name ?? c.fips}
+          </span>
+        ))}
+      </div>
+      {data.counties.length > 12 && (
+        <button type="button" onClick={() => setExpanded((v) => !v)} className={`text-paragraph-small ${TEXT.accent} underline`}>
+          {expanded ? 'Show fewer' : `Show all ${data.counties.length}`}
+        </button>
+      )}
+    </section>
+  )
+}
+
 export default function PlanDetailsModal({
   plan,
   providers,
@@ -145,6 +183,8 @@ export default function PlanDetailsModal({
           <h3 className={SECTION_TITLE}>Care Services</h3>
           <BenefitTable benefits={plan.benefits} rows={CARE_SERVICES} />
         </section>
+
+        <AvailabilitySection hiosPlanId={plan.hiosPlanId} />
 
         {providers.length > 0 && (
           <section className="space-y-3">
