@@ -78,8 +78,10 @@ search parameters.
 | why does this plan cover them, or not | `/api/coverage` — per-provider and per-drug rows with tier and prior-auth |
 | everything about one plan | `/api/plans/{hiosPlanId}` — benefits, documents, applicant premiums |
 
-Resolve identifiers first. `drugs` wants a `medId_ndc` selector, which is neither
-a RxCUI nor a med_id: `GET /api/drugs/{rxcui}` returns it as `drug.selector`.
+Resolve identifiers first. `drugs` wants a `medId_ndc` selector — a med_id then one
+or more of its NDC packages, which is neither a RxCUI nor a bare med_id:
+`GET /api/drugs/{rxcui}` returns it as `drug.selector`. Coverage is covered-if-any
+over the packages: a drug counts as covered when any one of them is on formulary.
 
 ## Search parameters
 
@@ -96,7 +98,7 @@ a RxCUI nor a med_id: `GET /api/drugs/{rxcui}` returns it as `drug.selector`.
 | `allowance` | int, dollars | — | ICHRA allowance; display and sort only |
 | `enrollment_date` | `YYYY-MM-DD` | first of next month | |
 | `providers` | NPI list | — | 10 digits each |
-| `drugs` | selector list | — | `medId_ndc`, or `r<rxcui>` for an unresolved id |
+| `drugs` | selector list | — | `medId_ndc` (append more packages as `_ndc`), or `r<rxcui>` for an unresolved id |
 | `q` | string | — | substring of plan name, carrier or HIOS id; `\|` separates alternatives (`A\|B` matches either) |
 | `metals` | enum list | all | `bronze` `expanded_bronze` `silver` `gold` `platinum` `catastrophic` |
 | `plan_types` | string list | all | e.g. `hmo,ppo,epo,pos`; `/api/market` reports what a zip actually has |
@@ -123,7 +125,7 @@ Present on `/api/plans`, `/api/plans/{id}`, `/api/market`, `/api/coverage`.
 
 `zip`, `market`, `household[] {age, tobacco, relation}` (`relation` is
 `primary` \| `spouse` \| `child`), `householdIncome`, `allowanceCents`,
-`enrollmentDate`, `providers[] {npi, name}`, `drugs[] {medId, ndc, rxcui, name}`,
+`enrollmentDate`, `providers[] {npi, name}`, `drugs[] {medId, ndcs, rxcui, name}`,
 `filters {…}`, `view`, `limit`.
 
 ### `market` — four distinct counts
@@ -172,7 +174,7 @@ Summary fields plus:
 | `compositeRated` | boolean — true when the plan is priced by household tier rather than per applicant |
 | `applicantPremiums[]` | `{age, child, premiumCents, waived}`; `waived` is the ACA three-oldest-children cap |
 | `coverage.providers[]` | `{npi, name, specialty, city, inNetwork}` |
-| `coverage.drugs[]` | `{medId, ndc, rxcui, name, covered, tier, tierLabel, priorAuthorization, quantityLimit, stepTherapy}` |
+| `coverage.drugs[]` | `{medId, ndcs, ndc, rxcui, name, covered, tier, tierLabel, priorAuthorization, quantityLimit, stepTherapy}` — `ndcs` is every package asked about; `ndc` is the one that answered (the covered package when any is covered), and `covered`/`tier` are read from it |
 | `benefits.careServices[]` | `{label, inNetwork, outOfNetwork}` |
 | `benefits.prescriptionCoverage[]` | same shape |
 | `benefits.additionalCoverages[]` | same shape |
@@ -196,7 +198,7 @@ Full plans are several KB each. Pair `view=full` with `limit`.
 
 ## `/api/coverage`
 
-`requested` echoes `providers[] {npi, name}` and `drugs[] {medId, ndc, name}`.
+`requested` echoes `providers[] {npi, name}` and `drugs[] {medId, ndcs, name}`.
 Each entry of `plans[]` carries `hiosPlanId`, `planName`, `carrierName`,
 `metalLevel`, `premiumCents`, `providerCoverage`, `drugCoverage`, and the
 `providers[]` / `drugs[]` rows described under the full view.
@@ -258,7 +260,7 @@ covers FFM **and** SBE.
   `hits[] {medId, name, packages[] {ndc, label}}`.
 - `GET /api/drugs/{rxcui}` — RxCUI is the only drug identifier that resolves; a
   bare `med_id` cannot be looked up. Returns `drug` plus `drug.selector`, the
-  `medId_ndc` string the `drugs` parameter expects.
+  `medId_ndc…` string the `drugs` parameter expects (med_id then every package).
 - `POST /api/resolve` — batch, max 50 ids:
   `{"kind":"provider"|"drug","ids":["…"]}` → `{resolved, unresolved}`.
 
@@ -454,7 +456,7 @@ curl -s "${AUTH[@]}" "$BASE/api/plans?zip=75201&age=40&spouse_age=38&child_ages=
 
 # resolve identifiers, then feed them back in
 NPI=$(curl -s "${AUTH[@]}" "$BASE/api/providers?zip=11201&q=smith" | jq -r '.hits[0].npi')
-SEL=$(curl -s "${AUTH[@]}" "$BASE/api/drugs?q=lipitor" | jq -r '"\(.hits[0].medId)_\(.hits[0].packages[0].ndc)"')
+SEL=$(curl -s "${AUTH[@]}" "$BASE/api/drugs?q=lipitor" | jq -r '.hits[0] | "\(.medId)_" + (.packages | map(.ndc) | join("_"))')
 
 # plans covering every provider and every drug
 curl -s "${AUTH[@]}" "$BASE/api/plans?zip=11201&age=40&providers=$NPI&drugs=$SEL&provider_coverage=all&drug_coverage=all" \

@@ -121,9 +121,11 @@ function decodeProviders(raw: string | null): SelectedProvider[] {
 }
 
 /**
- * `medId_ndc` for a resolved drug; `r<rxcui>` for one whose identifier never resolved.
- * The unresolved form has to travel too — dropping it from a shared link would shrink
- * the coverage denominator and overstate how much of the list a plan covers.
+ * `medId_ndc_ndc…` for a resolved drug — every formulary package travels so coverage
+ * stays widened on a shared link; `r<rxcui>` for one whose identifier never resolved.
+ * The unresolved form has to travel too — dropping it would shrink the coverage
+ * denominator and overstate how much of the list a plan covers. NDCs are digits and
+ * dashes, never `_`, so the one-package `medId_ndc` form still decodes unchanged.
  */
 function decodeDrugs(raw: string | null): SelectedDrug[] {
   const out: SelectedDrug[] = []
@@ -131,14 +133,14 @@ function decodeDrugs(raw: string | null): SelectedDrug[] {
     if (item.startsWith('r')) {
       const rxcui = Number(item.slice(1))
       if (Number.isInteger(rxcui) && rxcui > 0) {
-        out.push({ medId: 0, ndc: null, name: `RxCUI ${rxcui}`, rxcui })
+        out.push({ medId: 0, ndcs: [], name: `RxCUI ${rxcui}`, rxcui })
       }
       continue
     }
-    const [medIdRaw, ndc] = item.split(FIELD)
+    const [medIdRaw, ...ndcs] = item.split(FIELD)
     const medId = Number(medIdRaw)
-    if (!Number.isInteger(medId) || medId <= 0 || !ndc) continue
-    out.push({ medId, ndc, name: ndc })
+    if (!Number.isInteger(medId) || medId <= 0 || ndcs.length === 0) continue
+    out.push({ medId, ndcs, name: ndcs[0] })
   }
   return out
 }
@@ -239,7 +241,9 @@ export function encodeCriteria(criteria: SearchCriteria): URLSearchParams {
     p.set(
       'x',
       criteria.drugs
-        .map((drug) => (drug.ndc ? `${drug.medId}${FIELD}${drug.ndc}` : `r${drug.rxcui}`))
+        .map((drug) =>
+          drug.ndcs.length > 0 ? [drug.medId, ...drug.ndcs].join(FIELD) : `r${drug.rxcui}`,
+        )
         .join(LIST),
     )
   }

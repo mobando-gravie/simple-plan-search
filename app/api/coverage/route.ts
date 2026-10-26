@@ -22,7 +22,7 @@ export async function GET(request: Request) {
       cache: cacheBlock(run.result),
       requested: {
         providers: run.criteria.providers.map((p) => ({ npi: p.npi, name: p.name })),
-        drugs: run.criteria.drugs.map((d) => ({ medId: d.medId, ndc: d.ndc, name: d.name })),
+        drugs: run.criteria.drugs.map((d) => ({ medId: d.medId, ndcs: d.ndcs, name: d.name })),
       },
       plans: shown.map((plan) => coverageRow(plan, selections)),
     }

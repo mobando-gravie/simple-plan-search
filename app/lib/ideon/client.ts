@@ -64,8 +64,14 @@ async function call<T>(
   return (await response.json()) as T
 }
 
+// Every package of every selected drug, deduped and ordered — coverage is widened
+// over all of them. Stable so the body stays canonical for the cache key.
 function packageIds(input: PlanSearchInput): string[] {
-  return (input.drugs ?? []).map((d) => d.ndc).filter((ndc): ndc is string => !!ndc)
+  const seen = new Set<string>()
+  for (const drug of input.drugs ?? []) {
+    for (const ndc of drug.ndcs) if (ndc) seen.add(ndc)
+  }
+  return [...seen]
 }
 
 /** The exact body Ideon expects. Also the canonical form the cache key hashes. */

@@ -12,8 +12,12 @@ export type SelectedProvider = {
 }
 export type SelectedDrug = {
   medId: number
-  /** null when a pasted RxCUI did not resolve — no package, so it cannot be asked about. */
-  ndc: string | null
+  /**
+   * Every formulary package of the drug. Coverage is covered-if-any over these — a
+   * drug counts as covered when any one package is on formulary. Empty when a pasted
+   * RxCUI did not resolve: no package, so it cannot be asked about.
+   */
+  ndcs: string[]
   name: string
   /** Set when the drug arrived as a pasted identifier rather than from the typeahead. */
   rxcui?: number

@@ -111,10 +111,10 @@ async function main() {
     for (let row = queue.pop(); row; row = queue.pop()) {
       try {
         const hit = await fetchDrugByRxcui(Number(row.id))
-        const ndc = hit?.packages[0]?.ndc
-        if (hit && ndc) {
+        const ndcs = hit?.packages.map((p) => p.ndc) ?? []
+        if (hit && ndcs.length > 0) {
           row.label = hit.name
-          row.payload = { ndc, medId: hit.medId }
+          row.payload = { ndcs, medId: hit.medId }
           withNdc++
         } else {
           noSuchDrug++

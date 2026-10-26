@@ -68,8 +68,8 @@ test('coverage counts read off the caller list, so a plan with no row is not cov
       { npi: 2, name: 'No row returned' },
     ],
     drugs: [
-      { medId: 10, ndc: 'ndc-1', name: 'Lipitor' },
-      { medId: 0, ndc: null, name: 'RxCUI 999', rxcui: 999 },
+      { medId: 10, ndcs: ['ndc-1'], name: 'Lipitor' },
+      { medId: 0, ndcs: [], name: 'RxCUI 999', rxcui: 999 },
     ],
   }
   const covered = plan({
@@ -102,6 +102,7 @@ test('coverage counts read off the caller list, so a plan with no row is not cov
   )
   assert.deepEqual(detail.drugs[0], {
     medId: 10,
+    ndcs: ['ndc-1'],
     ndc: 'ndc-1',
     rxcui: null,
     name: 'Lipitor',

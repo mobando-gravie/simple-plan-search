@@ -21,6 +21,13 @@ import {
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null)
 
+/** A cached drug's packages, tolerating the pre-widening `{ ndc }` single-package shape. */
+function cachedPackages(payload: Record<string, unknown> | null | undefined): string[] {
+  const ndcs = payload?.ndcs
+  if (Array.isArray(ndcs)) return ndcs.filter((n): n is string => typeof n === 'string')
+  return typeof payload?.ndc === 'string' ? [payload.ndc] : []
+}
+
 /** The descriptive fields the modal shows; all absent on a name-only cache row. */
 function describe(source: { specialty?: unknown; type?: unknown; city?: unknown } | null | undefined) {
   return {
@@ -148,21 +155,22 @@ export async function resolveDrugs(rxcuis: string[]): Promise<Resolution<Selecte
   const rows = await mapCapped(rxcuis, async (id) => {
     const rxcui = Number(id)
     const hit = cached.get(id)
-    const cachedNdc = hit?.payload?.ndc
-    if (hit && typeof cachedNdc === 'string') {
-      const drug = { medId: Number(hit.payload?.medId ?? 0), ndc: cachedNdc, name: hit.label, rxcui }
+    // `ndc` is the pre-widening cache shape; read it as a one-package list.
+    const cachedNdcs = cachedPackages(hit?.payload)
+    if (hit && cachedNdcs.length > 0) {
+      const drug = { medId: Number(hit.payload?.medId ?? 0), ndcs: cachedNdcs, name: hit.label, rxcui }
       return { drug, ok: true }
     }
 
     const fetched = await fetchDrugByRxcui(rxcui)
-    const ndc = fetched?.packages[0]?.ndc ?? null
-    if (!fetched || !ndc) {
-      return { drug: { medId: 0, ndc: null, name: `RxCUI ${id}`, rxcui }, ok: false }
+    const ndcs = fetched?.packages.map((p) => p.ndc) ?? []
+    if (!fetched || ndcs.length === 0) {
+      return { drug: { medId: 0, ndcs: [], name: `RxCUI ${id}`, rxcui }, ok: false }
     }
 
-    learned.push({ id, label: fetched.name, payload: { ndc, medId: fetched.medId } })
+    learned.push({ id, label: fetched.name, payload: { ndcs, medId: fetched.medId } })
     byMedId.push({ id: String(fetched.medId), label: fetched.name })
-    return { drug: { medId: fetched.medId, ndc, name: fetched.name, rxcui }, ok: true }
+    return { drug: { medId: fetched.medId, ndcs, name: fetched.name, rxcui }, ok: true }
   })
 
   await Promise.all([remember('drug_rxcui', learned), remember('drug', byMedId)])

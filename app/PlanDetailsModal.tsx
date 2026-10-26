@@ -10,7 +10,7 @@ import {
   PRESCRIPTION_COVERAGE,
   type BenefitRow,
 } from '@/app/lib/planBenefits'
-import { drugKey, type DrugCoverage } from '@/app/lib/ideon/coverage'
+import { coverageOf, drugKey, type DrugCoverage } from '@/app/lib/ideon/coverage'
 import type { SelectedDrug, SelectedProvider } from '@/app/lib/ideon/types'
 import { formatCents } from '@/app/lib/money'
 import { sbcUrl } from '@/app/lib/planBenefits'
@@ -245,7 +245,7 @@ export default function PlanDetailsModal({
             <h3 className={SECTION_TITLE}>Your Prescriptions</h3>
             <ul className={DIVIDED_LIST}>
               {drugs.map((drug) => {
-                const cover = drug.ndc ? plan.coverage.drugs.find((d) => d.ndc === drug.ndc) : undefined
+                const cover = coverageOf(drug, plan.coverage)
                 return (
                   <li key={drugKey(drug)} className="flex items-start justify-between gap-4 py-3">
                     <span className={`text-paragraph-regular ${TEXT.body}`}>{drug.name}</span>
@@ -261,7 +261,7 @@ export default function PlanDetailsModal({
                         <span className={MUTED}>Not covered</span>
                       )}
                       <span className={`block ${MUTED_XS}`}>
-                        {drug.ndc === null
+                        {drug.ndcs.length === 0
                           ? 'identifier did not resolve'
                           : formatTier(cover?.tier ?? null)}
                       </span>

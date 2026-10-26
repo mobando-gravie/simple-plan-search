@@ -89,7 +89,7 @@ test('providers are NPIs only and drugs pair a med id with an NDC', () => {
   const encoded = encodeCriteria(
     criteria({
       providers: [{ npi: 1164996864, name: 'Jordan Smith' }],
-      drugs: [{ medId: 1234, ndc: '00093-7148-01', name: 'atorvastatin' }],
+      drugs: [{ medId: 1234, ndcs: ['00093-7148-01'], name: 'atorvastatin' }],
     }),
   )
   assert.equal(encoded.get('p'), '1164996864')
@@ -98,15 +98,28 @@ test('providers are NPIs only and drugs pair a med id with an NDC', () => {
   const { criteria: decoded } = decodeUrlState(encoded)
   assert.deepEqual(decoded?.providers, [{ npi: 1164996864, name: '1164996864' }])
   assert.deepEqual(decoded?.drugs, [
-    { medId: 1234, ndc: '00093-7148-01', name: '00093-7148-01' },
+    { medId: 1234, ndcs: ['00093-7148-01'], name: '00093-7148-01' },
   ])
+})
+
+test('every package of a drug travels so coverage stays widened on a shared link', () => {
+  const encoded = encodeCriteria(
+    criteria({
+      drugs: [{ medId: 1234, ndcs: ['00093-7148-01', '00069-4200-30'], name: 'sertraline' }],
+    }),
+  )
+  // med_id then each package, all joined on `_`; NDC dashes are untouched.
+  assert.equal(encoded.get('x'), '1234_00093-7148-01_00069-4200-30')
+
+  const { criteria: decoded } = decodeUrlState(encoded)
+  assert.deepEqual(decoded?.drugs[0].ndcs, ['00093-7148-01', '00069-4200-30'])
 })
 
 test('two drugs separate on a dot without disturbing the dashes in an NDC', () => {
   const { criteria: decoded } = decode('z=11201&a=40&x=1234_00093-7148-01.5678_00069-4200-30')
   assert.deepEqual(
-    decoded?.drugs.map((d) => d.ndc),
-    ['00093-7148-01', '00069-4200-30'],
+    decoded?.drugs.map((d) => d.ndcs),
+    [['00093-7148-01'], ['00069-4200-30']],
   )
 })
 
@@ -262,8 +275,8 @@ test('an unresolved drug round-trips as r<rxcui> so a shared link keeps the deno
     zipCode: '11201',
     household: { member: { age: 35, tobacco: false }, spouse: null, children: [] },
     drugs: [
-      { medId: 281606, ndc: '63187-0748-28', name: 'norethindrone' },
-      { medId: 0, ndc: null, name: 'RxCUI 999999', rxcui: 999999 },
+      { medId: 281606, ndcs: ['63187-0748-28'], name: 'norethindrone' },
+      { medId: 0, ndcs: [], name: 'RxCUI 999999', rxcui: 999999 },
     ],
   }
   const encoded = encodeCriteria(criteria)
@@ -271,7 +284,7 @@ test('an unresolved drug round-trips as r<rxcui> so a shared link keeps the deno
 
   const back = decodeUrlState(encoded).criteria
   assert.equal(back?.drugs.length, 2, 'the unresolved drug must survive the round trip')
-  assert.equal(back?.drugs[1].ndc, null)
+  assert.deepEqual(back?.drugs[1].ndcs, [])
   assert.equal(back?.drugs[1].rxcui, 999999)
 })
 

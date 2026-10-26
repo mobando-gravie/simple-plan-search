@@ -1,6 +1,6 @@
 import { firstOfNextMonth } from '../dates'
 import { householdMembers } from '../household'
-import { countCovered, countInNetwork, coverageMatch } from '../ideon/coverage'
+import { countCovered, countInNetwork, coverageMatch, coverageOf } from '../ideon/coverage'
 import type { SelectedDrug, SelectedProvider } from '../ideon/types'
 import { netPremiumCents } from '../money'
 import {
@@ -49,7 +49,7 @@ export function describeQuery(
     providers: criteria.providers.map((p) => ({ npi: p.npi, name: p.name })),
     drugs: criteria.drugs.map((d) => ({
       medId: d.medId,
-      ndc: d.ndc,
+      ndcs: d.ndcs,
       rxcui: d.rxcui ?? null,
       name: d.name,
     })),
@@ -117,7 +117,6 @@ function coverageCounts(plan: PricedPlan, s: Selections) {
  */
 export function coverageDetail(plan: PricedPlan, s: Selections) {
   const byNpi = new Map(plan.coverage.providers.map((p) => [p.npi, p]))
-  const byNdc = new Map(plan.coverage.drugs.map((d) => [d.ndc, d]))
   return {
     providers: s.providers.map((p) => ({
       npi: p.npi,
@@ -127,10 +126,12 @@ export function coverageDetail(plan: PricedPlan, s: Selections) {
       inNetwork: byNpi.get(p.npi)?.inNetwork ?? false,
     })),
     drugs: s.drugs.map((d) => {
-      const row = d.ndc === null ? undefined : byNdc.get(d.ndc)
+      // Covered-if-any across the drug's packages; `ndc` is the package that answered.
+      const row = coverageOf(d, plan.coverage)
       return {
         medId: d.medId,
-        ndc: d.ndc,
+        ndcs: d.ndcs,
+        ndc: row?.ndc ?? null,
         rxcui: d.rxcui ?? null,
         name: d.name,
         covered: row?.covered ?? false,

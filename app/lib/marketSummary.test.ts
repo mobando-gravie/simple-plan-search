@@ -124,7 +124,7 @@ test('coverage is null until something is asked about', () => {
 
 test('coverage counts plans covering all providers, all drugs, and both', () => {
   const providers = [{ npi: 1, name: 'A' }, { npi: 2, name: 'B' }]
-  const drugs = [{ medId: 10, ndc: 'ndc-1', name: 'Lipitor' }]
+  const drugs = [{ medId: 10, ndcs: ['ndc-1'], name: 'Lipitor' }]
   const drugRow = {
     ndc: 'ndc-1',
     tier: 'generic',

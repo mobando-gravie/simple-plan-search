@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   countCovered,
   countInNetwork,
+  coverageOf,
   drugKey,
   coverageMatch,
   coveragesByPlan,
@@ -177,12 +178,12 @@ test('countCovered counts only the requested drugs Ideon confirmed covered', () 
     providers: [],
     drugs: [drugRow('aaa', true), drugRow('bbb', false)],
   }
-  assert.equal(countCovered([{ ndc: 'aaa' }, { ndc: 'bbb' }], coverage), 1)
+  assert.equal(countCovered([{ ndcs: ['aaa'] }, { ndcs: ['bbb'] }], coverage), 1)
 })
 
-test('a drug whose identifier never resolved has a null ndc and can never be covered', () => {
+test('a drug whose identifier never resolved has no packages and can never be covered', () => {
   const coverage: PlanCoverage = { providers: [], drugs: [drugRow('aaa', true)] }
-  const selected = [{ ndc: 'aaa' }, { ndc: null }]
+  const selected = [{ ndcs: ['aaa'] }, { ndcs: [] }]
 
   assert.equal(countCovered(selected, coverage), 1)
   assert.equal(selected.length, 2, '1 of 2 — the unresolved drug is still counted against')
@@ -190,12 +191,39 @@ test('a drug whose identifier never resolved has a null ndc and can never be cov
 
 test('a drug with no returned coverage row is not covered', () => {
   const coverage: PlanCoverage = { providers: [], drugs: [drugRow('aaa', true)] }
-  assert.equal(countCovered([{ ndc: 'aaa' }, { ndc: 'zzz' }], coverage), 1)
+  assert.equal(countCovered([{ ndcs: ['aaa'] }, { ndcs: ['zzz'] }], coverage), 1)
+})
+
+test('covered-if-any: a drug is covered when any one package is on formulary', () => {
+  // The brand package came back not_covered; another package of the same drug is covered.
+  const coverage: PlanCoverage = {
+    providers: [],
+    drugs: [drugRow('brand', false), drugRow('generic', true)],
+  }
+  const drug = { ndcs: ['brand', 'generic'] }
+
+  assert.equal(countCovered([drug], coverage), 1)
+  // The representative row is the covered one, so the shown tier agrees with the verdict.
+  assert.equal(coverageOf(drug, coverage)?.covered, true)
+  assert.equal(coverageOf(drug, coverage)?.ndc, 'generic')
+})
+
+test('coverageOf falls back to a returned row so a not-covered drug still shows its tier', () => {
+  const coverage: PlanCoverage = { providers: [], drugs: [drugRow('only', false)] }
+  const row = coverageOf({ ndcs: ['only', 'missing'] }, coverage)
+  assert.equal(row?.covered, false)
+  assert.equal(row?.ndc, 'only')
+})
+
+test('coverageOf is null when no package was asked about or none came back', () => {
+  const coverage: PlanCoverage = { providers: [], drugs: [drugRow('aaa', true)] }
+  assert.equal(coverageOf({ ndcs: [] }, coverage), null)
+  assert.equal(coverageOf({ ndcs: ['zzz'] }, coverage), null)
 })
 
 test('drugKey tells two unresolved drugs apart, since both have med_id 0', () => {
-  assert.equal(drugKey({ medId: 281606, ndc: '63187-0748-28' }), '281606')
+  assert.equal(drugKey({ medId: 281606, ndcs: ['63187-0748-28'] }), '281606')
   // Without the rxcui these two would collide as "0" and duplicate a React key.
-  assert.equal(drugKey({ medId: 0, ndc: null, rxcui: 999999 }), 'r999999')
-  assert.equal(drugKey({ medId: 0, ndc: null, rxcui: 888888 }), 'r888888')
+  assert.equal(drugKey({ medId: 0, ndcs: [], rxcui: 999999 }), 'r999999')
+  assert.equal(drugKey({ medId: 0, ndcs: [], rxcui: 888888 }), 'r888888')
 })

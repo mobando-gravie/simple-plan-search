@@ -400,10 +400,10 @@ export default function SearchForm({
             renderHit={(hit) => <span className="block truncate">{hit.name}</span>}
             selected={drugs.map((d) => ({ key: drugKey(d), label: d.name }))}
             onAdd={(hit) => {
-              const ndc = hit.packages[0]?.ndc
-              if (!ndc) return
+              const ndcs = hit.packages.map((p) => p.ndc)
+              if (ndcs.length === 0) return
               setDrugs((rows) =>
-                addUnique(rows, { medId: hit.medId, ndc, name: hit.name }, (r) => String(r.medId)),
+                addUnique(rows, { medId: hit.medId, ndcs, name: hit.name }, (r) => String(r.medId)),
               )
             }}
             onRemove={(key) => setDrugs((rows) => rows.filter((r) => drugKey(r) !== key))}

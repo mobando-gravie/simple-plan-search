@@ -81,10 +81,10 @@ test('providers and drugs split on commas', () => {
     [1164996864, 1234567893],
   )
   assert.deepEqual(
-    query.criteria.drugs.map((d) => [d.medId, d.ndc, d.rxcui ?? null]),
+    query.criteria.drugs.map((d) => [d.medId, d.ndcs, d.rxcui ?? null]),
     [
-      [158585, '42385-0943-01', null],
-      [0, null, 83367],
+      [158585, ['42385-0943-01'], null],
+      [0, [], 83367],
     ],
   )
 })

@@ -105,12 +105,26 @@ export function countInNetwork(
  * The stable identity of a selected drug. An unresolved one has no med_id — they are
  * all zero — so its rxcui is the only thing that tells two of them apart.
  */
-export function drugKey(drug: { medId: number; ndc: string | null; rxcui?: number }): string {
-  return drug.ndc === null ? `r${drug.rxcui}` : String(drug.medId)
+export function drugKey(drug: { medId: number; ndcs: string[]; rxcui?: number }): string {
+  return drug.ndcs.length === 0 ? `r${drug.rxcui}` : String(drug.medId)
 }
 
-/** A null ndc is an identifier that never resolved, so it can never be covered. */
-export function countCovered(selected: { ndc: string | null }[], coverage: PlanCoverage): number {
-  const covered = new Set(coverage.drugs.filter((d) => d.covered).map((d) => d.ndc))
-  return selected.filter((s) => s.ndc !== null && covered.has(s.ndc)).length
+/**
+ * Covered-if-any across the drug's packages: a brand package can be off-formulary
+ * while another package of the same drug is covered. Prefers a covered row so the
+ * verdict and its tier agree; falls back to any returned row so a not-covered drug
+ * still shows the tier Ideon reported. Null when no package was asked about or none
+ * came back.
+ */
+export function coverageOf(
+  drug: { ndcs: string[] },
+  coverage: PlanCoverage,
+): DrugCoverage | null {
+  const rows = coverage.drugs.filter((d) => drug.ndcs.includes(d.ndc))
+  return rows.find((d) => d.covered) ?? rows[0] ?? null
+}
+
+/** A drug with no packages never resolved, so it can never be covered. */
+export function countCovered(selected: { ndcs: string[] }[], coverage: PlanCoverage): number {
+  return selected.filter((s) => coverageOf(s, coverage)?.covered === true).length
 }

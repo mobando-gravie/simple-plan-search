@@ -24,8 +24,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ rxcu
       {
         drug: {
           ...drug,
-          // The pair /api/plans and /api/coverage want as the `drugs` parameter.
-          selector: `${drug.medId}_${drug.ndc}`,
+          // The pair /api/plans and /api/coverage want as the `drugs` parameter —
+          // med_id then every package, so coverage stays widened over all of them.
+          selector: [drug.medId, ...drug.ndcs].join('_'),
         },
       },
       { headers: edgeCache(DETAIL_TTL_SECONDS, DETAIL_TTL_SECONDS) },

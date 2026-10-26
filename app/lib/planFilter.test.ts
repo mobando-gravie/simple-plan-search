@@ -171,8 +171,8 @@ test('the drug filter keeps only plans covering every selected drug', () => {
     }),
   ]
   const drugs = [
-    { medId: 1, ndc: 'X', name: 'x' },
-    { medId: 2, ndc: 'Y', name: 'y' },
+    { medId: 1, ndcs: ['X'], name: 'x' },
+    { medId: 2, ndcs: ['Y'], name: 'y' },
   ]
   const all = applyPlanFilters(plans, { ...DEFAULT_FILTERS, drugCoverage: 'match' }, 0, { drugs })
   assert.deepEqual(all.map((p) => p.hiosPlanId), [])
@@ -189,8 +189,8 @@ test('a drug whose identifier never resolved counts against a full match', () =>
   // Before the counts moved onto the requested list this returned the plan: the
   // unresolved drug had no coverage row, so `every(covered)` was vacuously true.
   const drugs = [
-    { medId: 1, ndc: 'X', name: 'x' },
-    { medId: 0, ndc: null, name: 'RxCUI 999', rxcui: 999 },
+    { medId: 1, ndcs: ['X'], name: 'x' },
+    { medId: 0, ndcs: [], name: 'RxCUI 999', rxcui: 999 },
   ]
   const out = applyPlanFilters(plans, { ...DEFAULT_FILTERS, drugCoverage: 'match' }, 0, { drugs })
   assert.deepEqual(out.map((p) => p.hiosPlanId), [])
